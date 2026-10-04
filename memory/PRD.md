@@ -30,8 +30,16 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 - Setup/Start/Diagnose/Autostart-Batches, Migration alter Konfiguration, transparente PNG/ICO-Assets, README/TESTPLAN/TESTERGEBNIS.
 - Tests iteration_1: 26 Python +5 JS. Nach zusätzlicher Windows-Message-Thread-Korrektur iteration_2: **33 Python +5 JS bestanden**, Tk-Screenshot geprüft. Simulierte Win32/LCU/WebExtension-Transporte klar von echten lokalen Socket-/Framing-/Tk-Tests getrennt. Kein realer Windows-/League-Test möglich in Linux.
 
+## Implementiert — 2026-10-04 (Session 2.2, Verbindungsfix)
+- Problem: Overlay flackerte „Verbunden/Getrennt“, keine Neuverbindung nach League-Neustart.
+- Ursache: jede einzelne fehlgeschlagene/langsame LCU-Anfrage (3s-Total-Timeout, Keep-Alive-Abbruch, 401/403, WS-Heartbeat ohne Pong) riss die gesamte Verbindung ab; unerwartete Exceptions beendeten den Thread.
+- Fix `/app/autopicker/lolpicker/lcu.py`: Anfragefehler werden toleriert (Reconnect erst nach 4 Fehlschlägen in Folge oder WS-Schließung), kein WS-Heartbeat, force_close-Connector, 8s-Request-Timeout, Status-Debounce, Phase-Reset bei Trennung, Discovery alle 1,5s über `LeagueClientUx.exe`-Cmdline (wie lcu-driver) → Lockfile → Standardpfad. Pick-Intent (Pre-Hover) aus Originalversion ergänzt.
+- Tests: `tests/mock_lcu.py` (simulierter LCU HTTPS+WS), `test_lcu_mock_server.py`, `test_lcu_discovery.py`; 43 Python-Tests bestanden (iteration_4), Backend-Download-Routen geprüft.
+- Download: `/app/downloads/LoL-Autopicker-2.2-Verbindungsfix.zip`, Backend liefert direkt aus `/app/downloads` (`/api/autopicker/download/{filename}`, `/api/autopicker/downloads`); Object-Storage-Manifest entfernt.
+
 ## Backlog / nächste Schritte
 ### P0 — manuelle Abnahme
+- Nutzer prüft 2.2 auf Windows: Verbinden, League schließen/neu starten, Ready, Hover/Ban/Pick (Linux kann League nicht ausführen).
 - Auf Nutzer-Windows echte Hotkeys, Registry Native Messaging, Autostart und League-Neustarts/Ready/Pick/Ban prüfen (TESTPLAN).
 - Exakten Defender-/SmartScreen-/AV-Befund aus Schutzverlauf ermitteln. Keine unprüfbaren Bypass-/Erkennungsgarantien.
 - Reale Browserprofile Chrome/Edge/Firefox end-to-end; Herstellerderivate erst nach Test als abgenommen bezeichnen.

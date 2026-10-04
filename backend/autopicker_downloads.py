@@ -11,6 +11,7 @@ CONTENT_TYPES = {".zip": "application/zip", ".png": "image/png", ".ico": "image/
 
 
 @router.get("/download/{filename}")
+@router.head("/download/{filename}")
 def download(filename: str):
     path = DOWNLOADS / filename
     if "/" in filename or "\\" in filename or filename.startswith(".") or path.suffix not in CONTENT_TYPES or not path.is_file():
