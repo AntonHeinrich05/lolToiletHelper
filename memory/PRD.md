@@ -54,6 +54,9 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 - Screenshot: in PLANNING („Absicht verkünden“) kein Hover. Hypothese (konsistent mit allen Beobachtungen): LCU meldet eigene Pick-Aktion in PLANNING als isInProgress → automate() versuchte Lock-in (abgelehnt) statt Intent.
 - Fix: bei timer.phase == PLANNING immer prehover (PATCH championId, completed=false); bei abgelehntem Lock-in zusätzlich Hover-PATCH als Fallback. Test ergänzt. 45 Tests grün. ZIP LoL-Autopicker-2.3.1.zip.
 
+## Übergabe — 2026-10-04
+- Nutzer-Account fast leer. Vollständiger Aufgabenplan für die nächste Session steht in `/app/autopicker/PLAN.md` (auch im ZIP): Ban-Rahmen, Deckkraft (Spiel/sonst), Schwacher-PC-Modus nur Lolalytics-Tabs, Lolalytics-Tabs nach Champion-Wechsel schließen, roter VS-Button, Runen+Beschwörerzauber pro Champion (Runenwahl wie im Client, Hover-Namen, gespeichert), Browser in den Vordergrund bei Alt+Shift+1/2, Alt+Shift+3 auch wenn LoL im Vordergrund.
+
 ## Backlog / nächste Schritte
 ### P0 — manuelle Abnahme
 - Nutzer prüft 2.2 auf Windows: Verbinden, League schließen/neu starten, Ready, Hover/Ban/Pick (Linux kann League nicht ausführen).
