@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lol-autopicker-local"
+version = "2.4.0"
+description = "Local Windows League client companion and browser bridge"
+requires-python = ">=3.11"
+dependencies = ["aiohttp>=3.11,<4", "psutil>=6,<8"]
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "pytest-asyncio>=0.24,<2"]
+
+[tool.setuptools]
+packages = ["lolpicker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
