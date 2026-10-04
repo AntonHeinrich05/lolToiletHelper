@@ -1,0 +1,51 @@
+{
+  "summary": "Extended and re-ran desktop regression coverage (Python/Tk + Node extension harness) with a fresh Xvfb session; all requested additions passed.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/autopicker/tests/test_storage_hotkeys_urls_selection.py",
+    "/app/autopicker/tests/test_lcu_worker_async.py",
+    "/app/autopicker/tests/test_controller_queue_phase.py",
+    "/app/autopicker/tests/test_ui_tk.py",
+    "/app/autopicker/tests/test_protocol_bridge.py",
+    "/app/autopicker/tests/test_native_host_subprocess.py",
+    "/app/autopicker/tests/test_layout_and_scripts.py",
+    "/app/autopicker/tests/test_extension_background.js",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/ui_tk_desktop.png"
+  ],
+  "action_items": [
+    "Run real Windows validation for native RegisterHotKey ownership and real WM_HOTKEY delivery outside mocks.",
+    "Run real League Client reconnect validation against live lockfile changes and real LCU transport.",
+    "Non-blocking: consider replacing aiohttp.BasicAuth usage before aiohttp 4.0 due deprecation warning."
+  ],
+  "critical_code_review_comments": [
+    "No blocking defects reproduced in this Linux container; requested reconnect, queue forwarding, and hotkey worker thread-affinity behaviors are covered by new automated tests.",
+    "Tk layout regression check passed: notice label remains visible in 390x680; screenshot artifact generated.",
+    "Settings conflict flow now regression-tested for warning visibility and rollback to previously active hotkeys."
+  ],
+  "updated_files": [
+    "/app/autopicker/tests/test_storage_hotkeys_urls_selection.py",
+    "/app/autopicker/tests/test_lcu_worker_async.py",
+    "/app/autopicker/tests/test_controller_queue_phase.py",
+    "/app/autopicker/tests/test_ui_tk.py",
+    "/app/test_reports/iteration_2.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "No persistent seed data created. Tests used temporary directories and simulated transports.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Xvfb was started explicitly on :99 before Tk tests. Run command used: DISPLAY=:99 PICKER_TEST_ARTIFACTS=/app/test_reports pytest /app/autopicker/tests -v --tb=short --junitxml=/app/test_reports/pytest/pytest_results.xml && node --test /app/autopicker/tests/test_extension_background.js",
+  "rca_of_issue": "No production failures found in this run. Earlier Tk failures were environmental (missing X server), reproduced as absent DISPLAY and mitigated by explicit Xvfb startup in this run."
+}
