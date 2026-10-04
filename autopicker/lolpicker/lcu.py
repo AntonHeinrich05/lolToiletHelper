@@ -343,16 +343,17 @@ class LCUWorker(threading.Thread):
         if not champion:
             return
         for action in mine:
-            status, _ = await self.request("PATCH", f"{SELECT}/actions/{action['id']}", {"championId": champion})
-            LOG.info("Pick-Intent %s auf Aktion %s (Timer %s): HTTP %s", champion, action["id"],
-                     (session.get("timer") or {}).get("phase"), status)
+            status, _ = await self.request("PATCH", f"{SELECT}/actions/{action['id']}", {"championId": champion, "completed": False})
+            LOG.info("Pick-Intent %s auf Aktion %s (Timer %s, aktiv %s): HTTP %s", champion, action["id"],
+                     (session.get("timer") or {}).get("phase"), action.get("isInProgress"), status)
 
     async def automate(self, session):
         options = self.settings.snapshot()
         if not options["auto_pick_enabled"]:
             return
         action = active_action(session)
-        if not action:
+        # PLANNING ("Absicht verkünden") never locks: only declare intent, even if the LCU flags the action in progress.
+        if not action or (session.get("timer") or {}).get("phase") == "PLANNING":
             await self.prehover(session, options)
             return
         identifier = action["id"]
@@ -374,6 +375,8 @@ class LCUWorker(threading.Thread):
         status, _ = await self.request("PATCH", path, {"championId": champion, "completed": True})
         LOG.info("%s %s: Hover HTTP %s", action["type"].capitalize(), champion, status)
         if status >= 300:
+            # At least show the hover if the client refuses completing right now; retried next second.
+            await self.request("PATCH", path, {"championId": champion, "completed": False})
             return
         await asyncio.sleep(0.12)
         if not self.settings.snapshot()["auto_pick_enabled"]:

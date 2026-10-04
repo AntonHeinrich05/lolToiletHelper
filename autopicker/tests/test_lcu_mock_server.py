@@ -21,7 +21,7 @@ class Settings:
         return dict(self.value)
 
 
-def champ_select(pick_in_progress=False, ban_in_progress=False):
+def champ_select(pick_in_progress=False, ban_in_progress=False, timer=None):
     return {
         "localPlayerCellId": 1, "queueId": 420,
         "myTeam": [{"cellId": 1, "assignedPosition": "top", "championId": 0, "championPickIntent": 0},
@@ -30,7 +30,7 @@ def champ_select(pick_in_progress=False, ban_in_progress=False):
         "actions": [[{"id": 1, "type": "ban", "actorCellId": 1, "isInProgress": ban_in_progress, "completed": False, "championId": 0}],
                     [{"id": 2, "type": "pick", "actorCellId": 1, "isInProgress": pick_in_progress, "completed": False, "championId": 0}]],
         "bans": {"myTeamBans": [], "theirTeamBans": []},
-        "timer": {"phase": "PLANNING"},
+        "timer": {"phase": timer or ("PLANNING" if not (pick_in_progress or ban_in_progress) else "BAN_PICK")},
     }
 
 
@@ -131,6 +131,7 @@ async def test_hover_ban_and_pick_flow(tmp_path):
         assert mock.state["session"]["myTeam"][0]["championPickIntent"] == 266
 
         mock.state["session"]["actions"][0][0]["isInProgress"] = True
+        mock.state["session"]["timer"]["phase"] = "BAN_PICK"
         await mock.publish(lcu.SELECT, mock.state["session"])
         assert await wait_for(lambda: mock.state["session"]["bans"]["myTeamBans"] == [51])
 
@@ -154,3 +155,22 @@ async def test_lock_in_is_retried_until_completed(tmp_path):
         assert len(completes) == 3
         patches = [c for c in mock.calls if c[0] == "PATCH"]
         assert all('"completed": true' in c[2] for c in patches)
+
+
+# lcu.py: PLANNING phase only declares intent even when the LCU flags the own pick action as in progress
+async def test_planning_phase_declares_intent_without_locking(tmp_path):
+    mock = MockLCU()
+    async with running(tmp_path, mock) as (_worker, events, _settings, _lockfile):
+        assert await wait_for(lambda: statuses(events) == [True])
+        mock.state["session"] = champ_select(pick_in_progress=True, timer="PLANNING")
+        await mock.set_phase("ChampSelect")
+        assert await wait_for(lambda: mock.state["session"]["myTeam"][0]["championPickIntent"] == 266)
+        await asyncio.sleep(1.5)
+        assert not any(c[0] == "POST" for c in mock.calls)
+        patches = [c for c in mock.calls if c[0] == "PATCH"]
+        assert patches and all('"completed": false' in c[2] for c in patches)
+        assert any(e["type"] == "pick_status" and e["status"].get(266) == "hovered" for e in events)
+
+        mock.state["session"]["timer"]["phase"] = "BAN_PICK"
+        await mock.publish(lcu.SELECT, mock.state["session"])
+        assert await wait_for(lambda: mock.state["session"]["myTeam"][0]["championId"] == 266)

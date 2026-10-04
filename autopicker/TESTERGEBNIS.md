@@ -1,6 +1,6 @@
-# Testergebnis — Version 2.3
+# Testergebnis — Version 2.3.1
 
-**44 Python-Tests und 7 Browserlogik-Tests bestanden.**
+**45 Python-Tests und 7 Browserlogik-Tests bestanden.**
 
 Neu in 2.2 geprüft (simulierter League-Client mit echtem HTTPS- und WebSocket-Server auf Loopback): Verbindung bleibt stabil, obwohl der Server keine WebSocket-Pongs sendet und beim Start mit HTTP 500 antwortet; Trennung und automatische Neuverbindung nach League-Neustart mit neuem Port und neuem Passwort; Auto-Accept über WebSocket-Ereignis genau einmal; Pick-Intent in der Planungsphase, Auto-Ban im eigenen Zug, Auto-Pick mit Bad-Matchup-Ausweichen und Lock-in; fehlgeschlagene Bestätigung wird bis zum Erfolg wiederholt. Zugangsdaten-Suche über `LeagueClientUx.exe`-Befehlszeile, Lockfile-Fallback und veraltete Lockfiles.
 
