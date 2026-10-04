@@ -57,7 +57,19 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 ## Übergabe — 2026-10-04
 - Nutzer-Account fast leer. Vollständiger Aufgabenplan für die nächste Session steht in `/app/autopicker/PLAN.md` (auch im ZIP): Ban-Rahmen, Deckkraft (Spiel/sonst), Schwacher-PC-Modus nur Lolalytics-Tabs, Lolalytics-Tabs nach Champion-Wechsel schließen, roter VS-Button, Runen+Beschwörerzauber pro Champion (Runenwahl wie im Client, Hover-Namen, gespeichert), Browser in den Vordergrund bei Alt+Shift+1/2, Alt+Shift+3 auch wenn LoL im Vordergrund.
 
+## Implementiert — 2026-10-04 (Session 2.4.0, alle 8 PLAN-Aufgaben)
+- Ban-Zeilen: neutraler grauer Rahmen ab ChampSelect, eigener Ban blau, nicht bannbar grün (`lcu.py` emittiert `ban_status`, `ui.py`).
+- Deckkraft: `opacity_default`/`opacity_ingame` (0.2–1.0) in `storage.py`, zwei Regler mit Live-Vorschau in `settings_layout.py`, Umschalten bei Phase InProgress/GameStart/Reconnect.
+- Schwacher-PC-Modus: Spielfenster-Erkennung über `RiotWindowClass`/Titel (nicht nur Prozessname), schließt nur Lolalytics-Tabs in allen Browsern (`close_lolalytics`); Alt+Shift+4 gleiche Aktion. `close_browser_windows` entfernt.
+- Erweiterung: `closeLolalytics()` schließt jeden Lolalytics-Tab (host-basiert, auch nach Champion-Wechsel), Save vor Close, Fehler blockiert nicht; Fenster-Fokus beim Öffnen; Befehle ohne Verbindung ignoriert.
+- Browser nach vorn: `focus_browser_window` (AttachThreadInput + SetForegroundWindow, Titel-Hinweis „lolalytics“) nach jedem `open`.
+- Runen & Zauber: `runes.py` (Data Dragon de_DE, Cache, STAT_SHARDS, Validierung), `loadout_ui.py` (Client-Layout, gold = gewählt, Tooltip), `✦` in Pick-Zeile, `loadouts` in settings, `lcu.apply_loadout` nach Lock-in (Seite anlegen/ersetzen, currentpage, my-selection Spells) genau einmal pro ChampSelect.
+- Hotkeys: INFO-Log „Hotkey empfangen“. VS-Button-Logik unverändert (erscheint bei bekanntem Gegner aus Draft-Rolle oder Live-Daten).
+- Tests: 49 Python + 7 JS grün (iteration_5), ZIP LoL-Autopicker-2.4.0.zip, Erweiterungs-Manifest 2.4.0 (Neu laden nötig).
+
 ## Backlog / nächste Schritte
+- Windows-Abnahme durch Nutzer: Spielfenster-Erkennung, Browser-Fokus im Spiel, Hotkeys bei fokussiertem Spiel, echte LCU-Runen-Endpunkte.
+- Optional: Runenseiten-Import aus Lolalytics, Rollen-Picklisten, Dodge-Warnung.
 ### P0 — manuelle Abnahme
 - Nutzer prüft 2.2 auf Windows: Verbinden, League schließen/neu starten, Ready, Hover/Ban/Pick (Linux kann League nicht ausführen).
 - Auf Nutzer-Windows echte Hotkeys, Registry Native Messaging, Autostart und League-Neustarts/Ready/Pick/Ban prüfen (TESTPLAN).
