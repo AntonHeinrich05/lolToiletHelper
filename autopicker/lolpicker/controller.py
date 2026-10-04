@@ -4,6 +4,7 @@ from pathlib import Path
 import queue
 import threading
 from .bridge import BrowserBridge
+from .browser_windows import ForegroundMonitor, close_browser_windows
 from .lcu import LCUWorker
 from .live import LiveWorker
 from .storage import Settings, data_dir, read_json
@@ -28,10 +29,12 @@ class Controller:
         self.bridge = BrowserBridge(self.directory, self.on_browser, self.emit, self.context)
         self.lcu = LCUWorker(self.settings, self.emit)
         self.live = LiveWorker(self.settings, self.emit)
+        self.foreground = ForegroundMonitor(self.settings, self.emit)
         threading.Thread(target=self.browser_worker, daemon=True, name="BrowserCommands").start()
         if start_workers:
             self.lcu.start()
             self.live.start()
+            self.foreground.start()
 
     def emit(self, message):
         try:
@@ -71,15 +74,17 @@ class Controller:
     def handle(self, message):
         kind = message["type"]
         if kind == "phase":
-            previous, self.phase = self.phase, message["phase"]
+            self.phase = message["phase"]
             self.queue_id = message.get("queue_id", self.queue_id)
             self.live.set_active(self.phase in ("InProgress", "GameStart", "Reconnect"))
             if self.phase in ("None", "Lobby", "Matchmaking", "EndOfGame", "WaitingForStats", "PreEndOfGame"):
                 self.champion, self.role, self.opponent = "", "", None
                 self.live_confirmed, self.last_live_url = False, None
-            if self.phase == "InProgress" and previous != "InProgress" and self.settings.snapshot()["weak_pc_mode"]:
-                self.enqueue("close_all", all_clients=True)
             self.bridge.broadcast_context()
+        elif kind == "status" and message["connected"]:
+            self.bridge.broadcast_context()
+        elif kind == "game_foreground" and self.settings.snapshot()["weak_pc_mode"]:
+            self.enqueue("close_browsers", all_clients=True)
         elif kind == "draft" and self.phase not in ("InProgress", "GameStart", "Reconnect"):
             self.champion = self.catalog.get(message["champion_id"], "")
             self.role, self.queue_id = message["role"], message["queue_id"]
@@ -134,12 +139,16 @@ class Controller:
                 continue
             try:
                 clients = list(self.bridge.listing()) if all_clients else [preferred]
-                for client in clients:
-                    self.bridge.command(command, client, **args)
-                if command == "open":
-                    self.emit({"type": "notice", "text": "Lolalytics geöffnet / vorhandener Tab aktiviert"})
-                elif command.startswith("close"):
-                    self.emit({"type": "notice", "text": "Verwaltete Tabs gespeichert und geschlossen"})
+                if command == "close_browsers":
+                    for client in clients:
+                        self.bridge.command("snapshot", client)
+                    count = close_browser_windows()
+                    self.emit({"type": "browsers_closed", "count": count})
+                else:
+                    for client in clients:
+                        self.bridge.command(command, client, **args)
+                if command.startswith("close"):
+                    logging.getLogger(__name__).debug("Browser-Aktion abgeschlossen: %s", command)
             except (ValueError, OSError) as error:
                 self.emit({"type": "notice", "text": str(error)})
             finally:
@@ -154,4 +163,5 @@ class Controller:
         self.stop_event.set()
         self.lcu.stop()
         self.live.stop()
+        self.foreground.stop()
         self.bridge.close()

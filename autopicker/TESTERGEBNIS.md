@@ -1,27 +1,13 @@
-# Testergebnis — 04.10.2026
+# Testergebnis — Version 2.1
 
-## Automatisiert bestanden
+**36 Python-Tests und 7 Browserlogik-Tests bestanden.**
 
-- **33 Python-Tests**, einschließlich echter lokaler Socket-/Native-Host-Protokolltests und Tk-Oberflächeninteraktionen unter Xvfb.
-- **5 JavaScript-Tests** der produktiven Erweiterungslogik in einer Node-VM mit simulierten WebExtension-APIs.
-- Python-Kompilierung und JavaScript-Syntaxprüfung ohne Fehler; Produktionsmodule ohne gemeldete Lintfehler.
+Neu geprüft: Original-Tk-Oberfläche und Einstellungen, fünf Suchvorschläge, Enter-Auswahl, Drag-and-drop-Speicherung, Bad-Matchup-Feld, Hotkey-Rollback, Schwacher-PC-Auslösung sowie neue persistente Browser-Brücke.
 
-Geprüfte Bereiche: Konfigurationsmigration, Speichern/Schreibfehler, Kürzelwechsel/Rollback, eigene Windows-Nachrichtenthread-Zuständigkeit, Shift-Ziffern-Normalisierung, URL-Deduplizierung, Item-/VS-Parameter, Bad-Matchups, Active-Action-Schutz, Ready-Accept-Deduplizierung, LCU-Neuverbindung mit geänderten Zugangsdaten, ARAM-Filter, lokale Bridge-Authentifizierung, Native-Messaging-Framing, Speicherbestätigung vor Schließen, Tab-Eigentum über Service-Worker-Neustarts, sichtbare Status-/Fehlerhinweise.
+NativeRelay wurde als echter lokaler Unterprozess mit echten Loopback-Sockets getestet: Browser-Handshake vor Desktopstart, anschließender Bridge-Start, neue Sitzung mit anderem Token/Port, Wiederverbindung im selben Hostprozess. Im letzten lokalen Lauf: **0,252 Sekunden beim Erststart, 0,251 Sekunden bei der Wiederverbindung**. Der Regressionstest verlangt unter 4 Sekunden beim verzögerten Erststart und unter 2,5 Sekunden beim Bridge-Neustart; das ist keine Leistungsgarantie für jeden Windows-PC.
 
-## Testgrenzen
+Die produktive Erweiterungslogik lief in Node mit simulierten Browser-APIs. Win32-Hotkeys, Fenster-Schließaktionen und League-API-Antworten wurden dort, wo die Linux-Testumgebung sie nicht bereitstellt, ebenfalls simuliert. Die produktive Anwendung verwendet reale Schnittstellen.
 
-**SIMULIERT:** Win32-Aufrufe, League-HTTP/WebSocket-Antworten und Browser-API-Antworten wurden für diese Tests durch kontrollierte Testimplementierungen ersetzt. Diese Tests prüfen die Programmlogik, **nicht** die gesamte Integration auf einem echten Windows-PC. Die produktive Anwendung selbst enthält keine vorgetäuschten League-/Browser-Antworten.
+Nicht auf echter Hardware abgenommen: Windows-Transparenz/Skalierung, native Tastenkürzel, echtes Browserfensterschließen und Riot-/League-Verhalten. Opera-Erweiterung funktioniert laut Rückmeldung des Nutzers bereits in Version 2.0. Die neue Fassung benötigt noch dessen Windows-Praxistest.
 
-**Nicht hier abgenommen:** echte WM_HOTKEY-Zustellung durch Windows, Registry-/Startup-Einrichtung, League-/Riot-Versionskompatibilität, native Messaging-Registrierung in echten Windows-Browsern, Firefox-Dauersignierung, Defender/SmartScreen, Leistungsdaten deines Laptops und tatsächliche Lane-Swaps.
-
-Die manuelle Abnahme steht in `TESTPLAN.md`. Keine Zusage „Defender wird nie löschen“ oder „jeder Browser funktioniert garantiert“.
-
-## Tests erneut ausführen
-
-```bat
-.venv\Scripts\python.exe -m pip install ".[test]"
-.venv\Scripts\python.exe -m pytest -q
-node --test tests\test_extension_background.js
-```
-
-Node.js nur für die JavaScript-Tests erforderlich. Bild-/Screenshot-Test kann ohne zusätzlich installiertes Pillow übersprungen werden. Linux-Tk-Tests benötigen einen laufenden X-Server/Xvfb.
+Python-Kompilierung, JavaScript-Syntax und Lintprüfungen ohne gemeldete Produktionsfehler. Hinweise für die Windows-Abnahme stehen in `TESTPLAN.md`.

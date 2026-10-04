@@ -13,7 +13,7 @@ let waiting = new Map();
 let commandTail = Promise.resolve();
 let eventTail = Promise.resolve();
 let reconnectTimer;
-let retryDelay = 1000;
+let retryDelay = 500;
 
 function canonical(raw) {
   if (typeof raw !== "string" || raw.length > 8192) throw new Error("Ungültige URL");
@@ -93,6 +93,17 @@ async function closeManaged(all) {
   await persist();
   return {closed: targets.length};
 }
+async function snapshotManaged() {
+  const tabs = await api.tabs.query({});
+  for (const tab of tabs) {
+    const meta = managed[tab.id];
+    if (meta) await save(tab, meta);
+    else if (context.champion && matches(tab.url, context.champion)) {
+      await save(tab, {champion: context.champion, kind: "base"});
+    }
+  }
+  return {saved: true};
+}
 async function correctVs(cmd) {
   const fresh = new URL(canonical(cmd.url));
   const tabs = await api.tabs.query({});
@@ -132,11 +143,22 @@ async function command(cmd) {
     case "open": return openManaged(cmd);
     case "close": return closeManaged(false);
     case "close_all": return closeManaged(true);
+    case "snapshot": return snapshotManaged();
     case "correct_vs": return correctVs(cmd);
     default: throw new Error("Unbekannte Aktion");
   }
 }
 function onMessage(message) {
+  if (message.event === "bridge_status" && !message.connected) {
+    connected = false;
+    for (const item of waiting.values()) {
+      clearTimeout(item.timer);
+      item.reject(new Error("Autopicker verbindet sich gerade"));
+    }
+    waiting.clear();
+    badge("…", "Browser-Brücke bereit — wartet auf Autopicker").catch(() => {});
+    return;
+  }
   if (message.reply_to && waiting.has(message.reply_to)) {
     const item = waiting.get(message.reply_to);
     clearTimeout(item.timer); waiting.delete(message.reply_to);
@@ -145,7 +167,7 @@ function onMessage(message) {
   }
   if (message.event === "context") {
     const initial = !connected;
-    connected = true; retryDelay = 1000;
+    connected = true; retryDelay = 500;
     context = {live_tracking: !!message.live_tracking, champion: message.champion || ""};
     badge("ON", "Autopicker verbunden — klicken, um diesen Browser auszuwählen").catch(() => {});
     if (initial || context.live_tracking) enqueueEvent(async () => {
@@ -197,7 +219,7 @@ async function connect() {
       waiting.clear();
       badge("OFF", "Autopicker starten / Browser-Bridge installieren; dann hier klicken").catch(() => {});
       reconnectTimer = setTimeout(() => connect().catch(persistError), retryDelay);
-      retryDelay = Math.min(retryDelay * 2, 30000);
+      retryDelay = Math.min(retryDelay * 2, 2000);
     });
     current.postMessage({event: "hello", client_id: clientId, name: browserName() + " · " + clientId.slice(0, 4)});
   } catch (error) {port = null; await persistError(error);}

@@ -23,6 +23,7 @@ function createHarness(options = {}) {
   let nextId = tabs.length ? Math.max(...tabs.map(t => t.id)) + 1 : 1;
   const onMessage = eventBus();
   const onDisconnect = eventBus();
+  let connectCalls = 0;
 
   const port = {
     posted: [],
@@ -91,7 +92,7 @@ function createHarness(options = {}) {
     },
     runtime: {
       lastError: null,
-      connectNative() { return port; },
+      connectNative() { connectCalls++; return port; },
       onStartup: eventBus(),
       onInstalled: eventBus(),
     },
@@ -133,6 +134,7 @@ function createHarness(options = {}) {
     events,
     sharedLocal,
     sharedSession,
+    connectCalls: () => connectCalls,
     setAckMode(mode) { ackMode = mode; },
     fromApp(message) { onMessage.trigger(message); },
     async tick(ms = 25) { await new Promise(resolve => setTimeout(resolve, ms)); },
@@ -232,4 +234,56 @@ test('storage.session survives worker restart but not browser restart', async ()
   await freshBrowser.tick(150);
   const close2 = freshBrowser.port.posted.find(m => m.reply_to === 'close2');
   assert.equal(close2.closed, 0);
+});
+
+test('bridge_status false keeps native port and recovers with later context', async () => {
+  const h = createHarness();
+  await h.tick(40);
+  assert.equal(h.connectCalls(), 1);
+
+  h.fromApp({event: 'context', live_tracking: false, champion: 'aatrox'});
+  await h.tick(20);
+  h.fromApp({id: 'open-a', command: 'open', kind: 'base', url: 'https://lolalytics.com/lol/aatrox/build/?tier=all'});
+  await h.tick(120);
+  assert.equal(h.tabs.length, 1);
+
+  h.fromApp({event: 'bridge_status', connected: false});
+  await h.tick(20);
+  h.fromApp({id: 'close-offline', command: 'close'});
+  await h.tick(150);
+  assert.equal(h.api.tabs._removes.length, 0);
+  assert.equal(h.tabs.length, 1);
+  assert.equal(h.connectCalls(), 1);
+
+  h.fromApp({event: 'context', live_tracking: false, champion: 'aatrox'});
+  await h.tick(20);
+  h.fromApp({id: 'close-recovered', command: 'close'});
+  await h.tick(180);
+  const okReply = h.port.posted.find(m => m.reply_to === 'close-recovered');
+  assert.equal(okReply.ok, true);
+  assert.equal(okReply.closed, 1);
+});
+
+test('snapshot saves tabs, never removes, and aborts on save failure', async () => {
+  const h = createHarness();
+  await h.tick(40);
+  h.fromApp({event: 'context', live_tracking: false, champion: 'aatrox'});
+  await h.tick(20);
+  h.fromApp({id: 'open-snap', command: 'open', kind: 'base', url: 'https://lolalytics.com/lol/aatrox/build/?tier=all'});
+  await h.tick(120);
+
+  h.fromApp({id: 'snapshot-ok', command: 'snapshot'});
+  await h.tick(180);
+  const ok = h.port.posted.find(m => m.reply_to === 'snapshot-ok');
+  assert.equal(ok.ok, true);
+  assert.equal(h.api.tabs._removes.length, 0);
+  assert.equal(h.tabs.length, 1);
+
+  h.setAckMode('fail');
+  h.fromApp({id: 'snapshot-fail', command: 'snapshot'});
+  await h.tick(180);
+  const fail = h.port.posted.find(m => m.reply_to === 'snapshot-fail');
+  assert.equal(fail.ok, false);
+  assert.equal(h.api.tabs._removes.length, 0);
+  assert.equal(h.tabs.length, 1);
 });

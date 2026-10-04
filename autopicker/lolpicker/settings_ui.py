@@ -1,134 +1,135 @@
-"""Transactional hotkey rebinding with visible conflicts, not silent fallback."""
 import tkinter as tk
-from tkinter import ttk
-from .hotkeys import combo_from_event, display_combo
+
+from .hotkeys import combo_from_event
+from .settings_layout import ClassicSettings
 from .storage import DEFAULT_HOTKEYS
 
-LABELS = {"toggle_overlay": "Overlay ein/aus", "open_lolalytics": "Lolalytics öffnen",
-          "open_vs": "VS-Matchup öffnen", "close_tab": "Tab speichern & schließen",
-          "close_all_browsers": "Alle verwalteten Tabs schließen"}
 
-
-class SettingsWindow:
+class SettingsWindow(ClassicSettings):
     def __init__(self, app):
-        from .ui import BG, PANEL, TEXT, GOLD, button
-        self.app, self.recording = app, None
-        self.win = tk.Toplevel(app.root)
-        self.win.title("Einstellungen · LoL Autopicker")
-        self.win.configure(bg=BG)
-        self.win.attributes("-topmost", True)
-        self.win.resizable(False, False)
-        self.win.protocol("WM_DELETE_WINDOW", self.close)
-        body = tk.Frame(self.win, bg=BG, padx=16, pady=16)
-        body.pack(fill="both", expand=True)
-        tk.Label(body, text="EINSTELLUNGEN", bg=BG, fg=GOLD, font=("Segoe UI", 12, "bold")).pack(anchor="w")
-        tk.Label(body, text="Kürzel anklicken und neue Kombination drücken. ESC bricht ab.",
-                 bg=BG, fg=TEXT, font=("Segoe UI", 9)).pack(anchor="w", pady=(6, 12))
-        self.buttons = {}
-        for action, label in LABELS.items():
-            row = tk.Frame(body, bg=BG)
-            row.pack(fill="x", pady=3)
-            tk.Label(row, text=label, bg=BG, fg=TEXT, font=("Segoe UI", 9)).pack(side="left")
-            b = button(row, "", lambda a=action: self.start_recording(a), width=24)
-            b.pack(side="right", padx=(16, 0))
-            self.buttons[action] = b
-        self.info = tk.Label(body, text="", bg=BG, fg=GOLD, wraplength=480, justify="left", font=("Segoe UI", 9))
-        self.info.pack(fill="x", pady=8)
-        button(body, "Standardkürzel wiederherstellen", lambda: self.commit(DEFAULT_HOTKEYS.copy())).pack(anchor="w", pady=(0, 10))
-        values = app.controller.settings.snapshot()
-        for key, label in (("live_tracking", "Live-URL-Tracking · gleicher Champion"),
-                           ("weak_pc_mode", "Sparmodus · verwaltete Tabs bei Spielstart schließen"),
-                           ("debug_mode", "Diagnoseprotokoll aktivieren")):
-            variable = tk.BooleanVar(value=values[key])
-            tk.Checkbutton(body, text=label, variable=variable, command=lambda k=key, v=variable: app.toggle(k, v),
-                           bg=BG, fg=TEXT, selectcolor=PANEL, activebackground=BG, activeforeground=TEXT,
-                           font=("Segoe UI", 9)).pack(anchor="w", pady=3)
-        tk.Label(body, text="Sparmodus beendet keine fremden Tabs oder Browserprozesse.", bg=BG, fg=GOLD,
-                 font=("Segoe UI", 8)).pack(anchor="w", pady=(0, 12))
-        tk.Label(body, text="Zielbrowser (alternativ auf das Erweiterungssymbol klicken)", bg=BG, fg=TEXT).pack(anchor="w")
-        self.clients = app.controller.bridge.listing()
-        self.browser = ttk.Combobox(body, state="readonly", values=["Automatisch · nur bei genau einem Browser"] + list(self.clients.values()), width=55)
-        current = self.clients.get(values["preferred_browser"], "")
-        self.browser.set(current or "Automatisch · nur bei genau einem Browser")
-        self.browser.pack(fill="x", pady=6)
-        self.browser.bind("<<ComboboxSelected>>", self.select_browser)
-        tk.Label(body, text="Optional: kompletter League-Lockfile-Pfad bei Erkennungsproblemen", bg=BG, fg=TEXT).pack(anchor="w", pady=(10, 0))
-        self.lockfile = tk.Entry(body, width=55)
-        self.lockfile.insert(0, values["lockfile_path"])
-        self.lockfile.pack(fill="x", pady=6)
-        button(body, "Pfad speichern", lambda: app.update_settings(lockfile_path=self.lockfile.get().strip())).pack(anchor="w")
-        tk.Label(body, text="Autostart: Autostart_aktivieren.bat / Autostart_entfernen.bat\nDaten und Logs: %LOCALAPPDATA%\\LoLAutopicker",
-                 bg=BG, fg=GOLD, justify="left", font=("Segoe UI", 9)).pack(anchor="w", pady=(14, 0))
-        self.win.bind("<KeyPress>", self.on_key)
-        self.refresh()
+        super().__init__(app)
+        self.win.protocol('WM_DELETE_WINDOW', self.close)
+        self.win.bind('<Escape>', self._escape, add='+')
+        self.message = None
+        self._message_timer = None
+        self.refresh_buttons()
+        self.win.update_idletasks()
+        height = max(400, self.win.winfo_reqheight())
+        self.win.geometry(f'320x{height}+{self.win.winfo_x()}+{self.win.winfo_y()}')
 
-    def refresh(self):
-        configured = self.app.controller.settings.snapshot()["hotkeys"]
-        for action, button in self.buttons.items():
-            text = display_combo(configured[action])
-            if configured[action] and action not in self.app.hotkeys.ids.values():
-                text += " · INAKTIV"
-            button.config(text=text)
+    def _build_tracking(self, row):
+        self.track_btn = tk.Label(row, fg='#f0e6d2', font=('Consolas', 8, 'bold'),
+                                  padx=10, pady=2, cursor='hand2')
+        self.track_btn.pack(side=tk.RIGHT)
+        self.track_btn.bind('<Button-1>', lambda _: self._toggle_tracking())
+        self.track_btn.bind('<Button-3>', lambda _: self.app.notice(self.app.connection_status()))
+        self.refresh_tracking()
 
-    def start_recording(self, action):
-        self.cancel_recording()
-        self.recording = action
-        self.app.hotkeys.suspended = True
-        self.app.hotkeys._clear()  # free keys so Tk receives even an existing combination
-        self.buttons[action].config(text="Tastenkombination drücken …")
+    def refresh_tracking(self):
+        if not self.win.winfo_exists():
+            return
+        on = self.app.live_tracking
+        ready = bool(self.app.controller.bridge.listing())
+        self.track_btn.config(text='AKTIV' if on and ready else 'WARTE' if on else 'AUS',
+                              bg=self._weak_bg(on and ready))
+
+    def show_message(self, text):
+        if self._message_timer:
+            self.win.after_cancel(self._message_timer)
+        if self.message is not None and self.message.winfo_exists():
+            self.message.destroy()
+        self.message = tk.Label(self.win, text=text, bg=self.BG_PANEL, fg=self.ACCENT,
+                                font=('Segoe UI', 7), wraplength=288, justify='left', padx=6, pady=4)
+        self.message.place(relx=0.5, rely=1, anchor='s', relwidth=0.97, y=-1)
+        message = self.message
+        self._message_timer = self.win.after(5000, lambda: message.destroy() if message.winfo_exists() else None)
+
+    def refresh_buttons(self):
+        for action, button in self.row_buttons.items():
+            registered = action in self.app.hotkey_manager.ids.values()
+            button.config(text=self._format_hotkey(self.app.hotkeys.get(action, '')),
+                          bg=self.BTN_BG, fg='#f0e6d2' if registered else self.DIM_FG)
+
+    def _toggle_tracking(self):
+        self.app.live_tracking = not self.app.live_tracking
+        self.app.save_config()
+        self.refresh_tracking()
+
+    def _toggle_weak_pc(self):
+        self.app.weak_pc_mode = not self.app.weak_pc_mode
+        self.app.save_config()
+        self.weak_btn.config(text=self._weak_label(self.app.weak_pc_mode), bg=self._weak_bg(self.app.weak_pc_mode))
+
+    def _toggle_debug(self):
+        self.app.debug_mode = not self.app.debug_mode
+        self.app.save_config()
+        self.debug_btn.config(text=self._weak_label(self.app.debug_mode), bg=self._weak_bg(self.app.debug_mode))
+
+    def _cancel_recording(self):
+        if self._recording:
+            self._recording = None
+            try:
+                self.app.hotkey_manager.apply(self.app.hotkeys)
+            except ValueError as error:
+                self.show_message(str(error))
+        self.app.hotkey_manager.suspended = False
+        self.refresh_buttons()
+
+    def _start_recording(self, action):
+        self._cancel_recording()
+        self._recording = action
+        self.app.hotkey_manager.suspended = True
+        self.app.hotkey_manager._clear()
+        self.row_buttons[action].config(text='►  Taste druecken ...', bg=self.REC_BG)
         self.win.focus_force()
 
-    def cancel_recording(self):
-        if self.recording:
-            self.recording = None
-            try:
-                self.app.hotkeys.apply(self.app.controller.settings.snapshot()["hotkeys"])
-            except ValueError as error:
-                self.info.config(text=str(error))
-        self.app.hotkeys.suspended = False
-        self.refresh()
-
-    def on_key(self, event):
-        if not self.recording:
+    def _on_keypress(self, event):
+        if not self._recording:
             return
-        if event.keysym == "Escape":
-            self.cancel_recording()
-            return "break"
+        if event.keysym == 'Escape':
+            self._cancel_recording()
+            return 'break'
         try:
             combo = combo_from_event(event)
             if combo:
-                values = self.app.controller.settings.snapshot()["hotkeys"]
-                values[self.recording] = combo
-                self.commit(values)
+                updated = dict(self.app.hotkeys)
+                updated[self._recording] = combo
+                self.commit(updated)
         except ValueError as error:
-            self.info.config(text=str(error))
-        return "break"
+            self.show_message(str(error))
+        return 'break'
 
-    def commit(self, bindings):
-        old = self.app.controller.settings.snapshot()["hotkeys"]
+    def commit(self, updated):
+        old = dict(self.app.hotkeys)
         try:
-            self.app.hotkeys.apply(bindings)
-            if not self.app.update_settings(hotkeys=bindings):
-                self.app.hotkeys.apply(old)
-                raise ValueError("Nicht gespeichert; bisherige Kürzel bleiben aktiv")
-            self.info.config(text="Gespeichert und bei Windows registriert. Neue Kürzel sind sofort aktiv.")
+            self.app.hotkey_manager.apply(updated)
+            self.app.hotkeys = updated
+            if not self.app.save_config():
+                raise ValueError('Nicht gespeichert; bisheriges Kürzel bleibt aktiv')
         except ValueError as error:
+            self.app.hotkeys = old
             try:
-                self.app.hotkeys.apply(old)
-                self.info.config(text=str(error))
+                self.app.hotkey_manager.apply(old)
             except ValueError as restore_error:
-                self.info.config(text=f"{error}. Kürzel inaktiv: {restore_error}")
+                self.show_message(f'{error}\n{restore_error}')
+            else:
+                self.show_message(str(error))
         finally:
-            self.recording = None
-            self.app.hotkeys.suspended = False
-            self.refresh()
+            self._recording = None
+            self.app.hotkey_manager.suspended = False
+            self.refresh_buttons()
 
-    def select_browser(self, _):
-        name = self.browser.get()
-        selected = next((key for key, value in self.clients.items() if value == name), "")
-        self.app.update_settings(preferred_browser=selected)
+    def _reset_defaults(self):
+        self.commit(dict(DEFAULT_HOTKEYS))
+
+    def _escape(self, _):
+        if self._recording:
+            self._cancel_recording()
+        return 'break'
 
     def close(self):
-        self.cancel_recording()
+        self._cancel_recording()
+        if self._message_timer:
+            self.win.after_cancel(self._message_timer)
         self.win.destroy()
-        self.app.settings_window = None
+        self.app._settings_window = None

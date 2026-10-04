@@ -20,7 +20,8 @@ Diese Liste trennt implementierte Logik von lokal noch ausstehender Integration.
 - [ ] Aatrox → Aatrox-vs-Caitlyn mit `vslane=bottom` → speichern/schließen → vollständig wieder öffnen.
 - [ ] Live-Tracking AN: SPA-/History-Änderung wird gespeichert, anderer Champion überschreibt Aatrox nicht.
 - [ ] Live-Tracking AUS: Änderungen vor dem Autopicker-Schließen gespeichert; bei nicht schreibbarem Datenordner bleibt Tab offen.
-- [ ] Fremde Tabs und Downloads bleiben bei „alle verwalteten Tabs schließen“ unangetastet. Auch nach Navigation eines verwalteten Tabs zu fremder Domain/Champion.
+- [ ] Alt+Shift+3 speichert und schließt nur den verwalteten Lolalytics-Tab; fremde Tabs bleiben offen.
+- [ ] Alt+Shift+4 / Schwacher-PC-Modus: **alle erkannten Browserfenster** werden wie im Original geschlossen. Vorher passende URLs sichern; keine erzwungene Prozessbeendigung; bei fehlgeschlagener Speicherbestätigung bleibt alles offen.
 - [ ] Draft-Reihenfolge ungleich Rollenreihenfolge: keine Index-Zuordnung; nach Spielstart VS gemäß eindeutigen Live-Daten angepasst, vorhandene VS-Tabs ohne Fokuswechsel korrigiert.
 
 ## Priorität 1 — Neustarts / Belastung
@@ -31,7 +32,12 @@ Diese Liste trennt implementierte Logik von lokal noch ausstehender Integration.
 - [ ] Autostart aktivieren → Windows neu anmelden → startet; entfernen → startet nicht mehr automatisch.
 - [ ] 30 Minuten Task-Manager beobachten: CPU im Leerlauf, RAM im Match, keine steigende Threadzahl, keine wachsenden Logdateien.
 - [ ] Netzwerk/Live-Client nicht verfügbar → Hinweis/unbekannte Rolle statt erfundenem Gegner.
-- [ ] 1366×768 und Windows-Anzeigeskalierung 125/150 %: Bedienung/Dialogs sichtbar; bei Bedarf Fenstergröße anpassen.
+- [ ] Originaloverlay: rahmenlos, kompakt, 75 % Deckkraft; Einstellungen Originalfarben/96 % Deckkraft, Footer vollständig sichtbar (Höhe wächst bei Bedarf mit Systemschrift).
+- [ ] `a` in Pick-Suche: bis zu fünf Vorschläge, Enter nimmt ersten; Pfeiltasten/Maus wählen Alternativen.
+- [ ] Pick-/Ban-Zeilen und Bad-Matchup-Kacheln per Drag-and-drop umsortieren, Doppelklick bearbeiten, × löschen; nach Neustart bleibt Reihenfolge erhalten.
+- [ ] Opera bereits offen, Autopicker starten → Brücke verbindet ohne 30-Sekunden-Backoff. Autopicker neu starten → gleiche Erweiterung verbindet erneut. Beide Startreihenfolgen prüfen.
+- [ ] Schwacher-PC-Modus: tatsächliches Spiel in Vordergrund bringen / Reintabben löst aus, Launcher oder InProgress-Meldung alleine nicht.
+- [ ] 1366×768 und Windows-Anzeigeskalierung 125/150 %: Bedienung/Dialogs sichtbar.
 - [ ] Icon in Fenster/Verknüpfung auf heller und dunkler Fläche ohne weißen Außenrand.
 
 ## Offen, nicht durch Code garantierbar

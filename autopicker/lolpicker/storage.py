@@ -16,7 +16,7 @@ DEFAULT_HOTKEYS = {
 }
 DEFAULTS = {
     "schema": 2, "auto_ready_enabled": True, "auto_pick_enabled": False,
-    "auto_pick_champs": [], "auto_ban_champs": [], "bad_matchups": {},
+    "auto_pick_champs": [], "auto_ban_champs": [], "bad_matchups": {}, "auto_pick_minimized": True,
     "hotkeys": DEFAULT_HOTKEYS, "live_tracking": True,
     "weak_pc_mode": False, "debug_mode": False, "preferred_browser": "",
     "lockfile_path": "", "live_api_port": 2999,
@@ -53,7 +53,7 @@ def read_json(path, default):
 
 def clean_config(value):
     result = copy.deepcopy(DEFAULTS)
-    for key in ("auto_ready_enabled", "auto_pick_enabled", "live_tracking", "weak_pc_mode", "debug_mode"):
+    for key in ("auto_ready_enabled", "auto_pick_enabled", "auto_pick_minimized", "live_tracking", "weak_pc_mode", "debug_mode"):
         if isinstance(value.get(key), bool):
             result[key] = value[key]
     for key in ("auto_pick_champs", "auto_ban_champs"):

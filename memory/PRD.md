@@ -45,3 +45,19 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 
 ## Nicht zugesagt
 Null-Latenz, garantierte AV-Warnungsfreiheit, alle Browser, tatsächliche Lane-Swaps ohne Daten, Wiederherstellung letzter Änderung bei abruptem Browser-/Systemabsturz.
+
+## Nutzerkorrektur / Version 2.1 — 2026-10-04
+Der Nutzer verlangt ausdrücklich die ursprüngliche Tk-Oberfläche (Screenshot, Farben, 75%-Overlay/96%-Einstellungen, kompakte rahmenlose Fenster), Suchvorschläge/Enter/Drag-and-drop, ursprünglichen Schwacher-PC-Modus und keine Expo-Oberfläche. Er bestätigt, dass die Opera-Erweiterung funktioniert, möchte aber schnelleres Verbinden sobald League bereit ist. Keine neue Einrichtung oder Erweiterungs-ID einführen.
+
+### Umgesetzt
+- Originaldatei erneut geladen, SHA identisch mit erster Fassung. Reine Original-Tk-Widgets und Edit-/Drag-/Bad-Matchup-Methoden ohne alte fehlerhafte Netzwerk-/pynput-Schicht extrahiert; `ui_layout.py`, `ui_widgets.py`, `settings_layout.py`, Adapter in `ui.py`/`settings_ui.py`. Überflüssige Kommentare entfernt. Fünf statt vier Vorschläge entsprechend explizitem Wunsch.
+- Ursprüngliche kleine Oberfläche/Settingsfarben und Transparenz wiederhergestellt; Settingshöhe mindestens400, bei Systemschriftbedarf automatisch ausreichend für Footer. Keine permanente Zusatz-Browserzeile/Großtitel.
+- „Schwacher PC Modus“ wieder echte Spiel-Vordergrund-Auslösung (auch Reintabben), ausdrücklich **alle erkannten Browserfenster**, nicht nur verwaltete Tabs. Damit ersetzt der neue Nutzerwunsch die vorherige P0-Regel zum ausschließlichen Schließen verwalteter Tabs für diese Aktion. Vorher Erweiterungs-Snapshot/Save-ACK; danach normale WM_CLOSE-Nachrichten, niemals taskkill. Modus standardmäßig AUS. Alt+Shift+3 bleibt einzelner verwalteter Tab.
+- Persistenter NativeRelay wartet auch bei beendetem Desktopprogramm auf neue Bridge-Sitzung. Nur Dateimetadaten alle250ms, Dateilesen erst bei Änderung, keine Prozess-Startschleife. Native Port hält Browserworker bereit. Crash-Fallback nun maximal2s statt30s. League-connected sendet frischen Kontext; Browserbereitschaft unabhängig von League bereits vorher möglich.
+- Bestehende Opera-ID bleibt beim Ersetzen im selben Ordner erhalten; Erweiterung einmal in opera://extensions neu laden. Kein Setup erneut nötig. Im ZIP keine Expo-Dateien/-Abhängigkeiten.
+- Testagent erster Lauf hing in veraltetem NativeHost-Fixture (accept vor hello), wurde beendet. Fixture handshake/Timeout korrigiert; zweiter Agent aktualisierte Classic-Tests. iteration_3:36 Python+7 Node bestanden. Hauptagent beseitigte danach aiohttp.BasicAuth-Deprecation mittels Authorization-Header und Footer-Clipping; erneuter vollständiger Lauf bestanden. Gemessene echte lokale Relay-Verbindung0.252s initial/0.251s reconnect (keine Windows-Garantie). Screenshot `/app/test_reports/classic_ui.png`.
+- README stark gekürzt, Update-Anleitung für bestehende Opera-Installation. Version2.1.0. Neues Paket `/app/downloads/LoL-Autopicker-2.1-Originaldesign.zip`, öffentliche Download-Whitelist erhält alte2.0-Datei zusätzlich.
+
+### Noch offen
+- Nutzer prüft native Windows-Transparenz/Hotkeys, tatsächliche Opera-Verbindungszeit und WM_CLOSE mit ungespeicherten Tabs. Linux-/simulierte Schnittstellen ersetzen diese Abnahme nicht.
+- Firefox-Signatur/Defender-Fehlalarmdiagnose bleiben unverändert offen. Keine Expo-App liefern oder Desktop-Design eigenmächtig wieder ändern.

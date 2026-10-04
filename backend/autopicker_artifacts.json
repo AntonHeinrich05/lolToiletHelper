@@ -5,23 +5,28 @@
     "size": 268144
   },
   "LoL-Autopicker-Icon.png": {
-    "path": "lol-autopicker/uploads/public-release/fc308ecd-d437-42db-8ad2-63b08e77285b.png",
+    "path": "lol-autopicker/uploads/public-release/c77cdbbb-a961-41dc-83db-0388f05d8caf.png",
     "content_type": "image/png",
     "size": 59498
   },
   "LoL-Autopicker-Icon.ico": {
-    "path": "lol-autopicker/uploads/public-release/d26099b4-a6d3-44b0-8a5f-9741c78cf064.ico",
+    "path": "lol-autopicker/uploads/public-release/6339f8e3-7c91-4f3a-9198-ec5446de1c6d.ico",
     "content_type": "image/vnd.microsoft.icon",
     "size": 93658
   },
   "README.md": {
-    "path": "lol-autopicker/uploads/public-release/f5d6897e-44ac-4570-a671-d904702fb7fd.md",
+    "path": "lol-autopicker/uploads/public-release/25918c8d-5589-4699-98b3-5f55de8784df.md",
     "content_type": "text/markdown",
-    "size": 19605
+    "size": 8060
   },
   "SHA256.txt": {
-    "path": "lol-autopicker/uploads/public-release/bb98b9ee-50c2-4f03-9476-b0e097a2e94d.txt",
+    "path": "lol-autopicker/uploads/public-release/56047857-3a53-46f6-9d0a-9ee32ed0fa4a.txt",
     "content_type": "text/plain",
-    "size": 99
+    "size": 104
+  },
+  "LoL-Autopicker-2.1-Originaldesign.zip": {
+    "path": "lol-autopicker/uploads/public-release/08d84017-06ed-4cb8-9968-fcc51797e0f2.zip",
+    "content_type": "application/zip",
+    "size": 277453
   }
 }

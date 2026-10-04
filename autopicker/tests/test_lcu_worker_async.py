@@ -1,5 +1,6 @@
 """Async LCU worker tests for ready-check and pick/ban automation safeguards."""
 import asyncio
+from base64 import b64decode
 import contextlib
 import time
 
@@ -40,7 +41,7 @@ async def test_accept_ready_once_and_skip_when_already_accepted(fake_settings):
 
     assert len([c for c in calls if c[0] == "POST"]) == 1
     assert worker.ready_accepted is True
-    assert any(m.get("type") == "notice" for m in emitted)
+    assert any(m.get("type") == "ready_accepted" for m in emitted)
 
 
 @pytest.mark.asyncio
@@ -183,8 +184,8 @@ async def test_main_reconnect_rediscovers_credentials_and_cleans_child_tasks(mon
             raise StopAsyncIteration
 
     class _FakeSession:
-        def __init__(self, *, auth=None, **_kwargs):
-            auth_passwords.append(getattr(auth, "password", ""))
+        def __init__(self, *, headers=None, **_kwargs):
+            auth_passwords.append(b64decode(headers["Authorization"].split()[1]).decode().split(":", 1)[1])
 
         async def __aenter__(self):
             return self

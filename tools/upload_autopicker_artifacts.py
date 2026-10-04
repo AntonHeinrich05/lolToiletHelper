@@ -13,8 +13,9 @@ url = base.rstrip("/") + "/objstore/api/v1/storage"
 response = requests.post(url + "/init", json={"emergent_key": os.environ["EMERGENT_LLM_KEY"]}, timeout=30)
 response.raise_for_status()
 key = response.json()["storage_key"]
-manifest = {}
-for filename in ("LoL-Autopicker-2.0-Quellcode.zip", "LoL-Autopicker-Icon.png", "LoL-Autopicker-Icon.ico", "README.md", "SHA256.txt"):
+manifest_path = Path("/app/backend/autopicker_artifacts.json")
+manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
+for filename in ("LoL-Autopicker-2.1-Originaldesign.zip", "LoL-Autopicker-Icon.png", "LoL-Autopicker-Icon.ico", "README.md", "SHA256.txt"):
     path = Path("/app/downloads") / filename
     content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
     storage_path = f"lol-autopicker/uploads/public-release/{uuid.uuid4()}{path.suffix}"

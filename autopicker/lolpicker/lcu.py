@@ -1,5 +1,6 @@
 """Reconnectable local LCU client. No lcu-driver ready callback containing an endless loop."""
 import asyncio
+from base64 import b64encode
 from dataclasses import dataclass, field
 import json
 import logging
@@ -8,7 +9,7 @@ import threading
 import time
 import aiohttp
 import psutil
-from .selection import active_action, choose, own_player, roster, draft_opponent
+from .selection import active_action, available, choose, own_player, roster, draft_opponent
 
 LOG = logging.getLogger(__name__)
 PHASE = "/lol-gameflow/v1/gameflow-phase"
@@ -91,7 +92,8 @@ class LCUWorker(threading.Thread):
             self.attempted.clear()
             try:
                 timeout = aiohttp.ClientTimeout(total=3)
-                async with aiohttp.ClientSession(auth=aiohttp.BasicAuth("riot", credentials.password), timeout=timeout, trust_env=False) as http:
+                authorization = "Basic " + b64encode(f"riot:{credentials.password}".encode("utf-8")).decode("ascii")
+                async with aiohttp.ClientSession(headers={"Authorization": authorization}, timeout=timeout, trust_env=False) as http:
                     self.http = http
                     self.base = f"https://127.0.0.1:{credentials.port}"
                     async with http.ws_connect(f"wss://127.0.0.1:{credentials.port}/", ssl=False,
@@ -185,6 +187,20 @@ class LCUWorker(threading.Thread):
             self.emit({"type": "draft", "champion_id": me.get("championId", 0) or me.get("championPickIntent", 0),
                        "role": me.get("assignedPosition", ""), "roster": roster(data),
                        "opponent": draft_opponent(data), "queue_id": self.queue_id})
+            options = self.settings.snapshot()
+            enemies = {enemy["champion_id"] for enemy in roster(data)}
+            selected = me.get("championId") or me.get("championPickIntent")
+            states = {}
+            for champion in options["auto_pick_champs"]:
+                if champion == selected:
+                    states[champion] = "hovered"
+                elif not available(data, champion):
+                    states[champion] = "banned"
+                elif enemies.intersection(options["bad_matchups"].get(str(champion), [])):
+                    states[champion] = "bad_matchup"
+                else:
+                    states[champion] = "ok"
+            self.emit({"type": "pick_status", "status": states})
             await self.automate(data)
 
     async def accept_ready(self, data):
@@ -199,7 +215,7 @@ class LCUWorker(threading.Thread):
         status, _ = await self.request("POST", READY + "/accept")
         if status < 300:
             self.ready_accepted = True
-            self.emit({"type": "notice", "text": "Bereitschaftsanfrage angenommen"})
+            self.emit({"type": "ready_accepted"})
 
     async def automate(self, session):
         options = self.settings.snapshot()
