@@ -43,6 +43,13 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 - `prehover()`: Pick-Intent jede Sekunde solange nichts gehovert ist (manuelles Hovern bleibt). `available()` schließt auch Champions aus, die andere Spieler gewählt haben.
 - 44 Tests grün; ZIP LoL-Autopicker-2.2.1-Verbindungsfix.zip.
 
+## Implementiert — 2026-10-04 (Session 2.3)
+- Nutzer bestätigt: Verbindung, Ban und Pick funktionieren. Offen waren: Pick-Intent in der Vorauswahl, Rahmenfarbe nach Lock-in (Diana grün), Python-Installation für Nutzer ohne Python.
+- `prehover()`: PATCH {championId} (ohne completed) auf alle eigenen Pick-Aktionen, jede Sekunde bis Intent sichtbar; Logging mit Timer-Phase + HTTP-Status + Fehlerbody.
+- `pick_status`: nach eigenem Lock-in nur gewählter Champion „hovered“ (blau), Rest „ok“ (grau).
+- `Setup.bat`: findet py/python 3.11+, sonst Download python-3.12.10-amd64.exe (/passive, PrependPath) → Fallback winget → venv.
+- 44 Tests grün; ZIP LoL-Autopicker-2.3.zip.
+
 ## Backlog / nächste Schritte
 ### P0 — manuelle Abnahme
 - Nutzer prüft 2.2 auf Windows: Verbinden, League schließen/neu starten, Ready, Hover/Ban/Pick (Linux kann League nicht ausführen).

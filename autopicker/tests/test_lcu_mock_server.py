@@ -138,7 +138,7 @@ async def test_hover_ban_and_pick_flow(tmp_path):
         mock.state["session"]["actions"][1][0]["isInProgress"] = True
         await mock.publish(lcu.SELECT, mock.state["session"])
         assert await wait_for(lambda: mock.state["session"]["myTeam"][0]["championId"] == 10)
-        assert await wait_for(lambda: any(e["type"] == "pick_status" and e["status"].get(266) == "bad_matchup" for e in events))
+        assert await wait_for(lambda: any(e["type"] == "pick_status" and e["status"].get(10) == "hovered" and e["status"].get(266) == "ok" for e in events))
         assert await wait_for(lambda: any(e["type"] == "draft" and e["champion_id"] == 10 for e in events))
 
 

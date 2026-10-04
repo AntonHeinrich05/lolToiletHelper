@@ -194,7 +194,9 @@ class LCUWorker(threading.Thread):
             if response.status in (401, 403):
                 LOG.warning("LCU verweigert %s %s (%s)", method, path, response.status)
             if response.status >= 400:
-                await response.read()
+                body = (await response.text())[:200]
+                if method != "GET":
+                    LOG.info("%s %s -> HTTP %s %s", method, path, response.status, body)
                 return response.status, None
             text = await response.text()
             try:
@@ -292,10 +294,14 @@ class LCUWorker(threading.Thread):
             options = self.settings.snapshot()
             enemies = {enemy["champion_id"] for enemy in roster(data)}
             selected = me.get("championId") or me.get("championPickIntent")
+            locked = any(a.get("type") == "pick" and a.get("completed") and a.get("actorCellId") == data.get("localPlayerCellId")
+                         for a in actions(data))
             states = {}
             for champion in options["auto_pick_champs"]:
                 if champion == selected:
                     states[champion] = "hovered"
+                elif locked:
+                    states[champion] = "ok"  # after lock-in the other rows stay neutral
                 elif not available(data, champion):
                     states[champion] = "banned"
                 elif enemies.intersection(options["bad_matchups"].get(str(champion), [])):
@@ -320,25 +326,26 @@ class LCUWorker(threading.Thread):
             self.emit({"type": "ready_accepted"})
 
     async def prehover(self, session, options):
-        # Pick intent like the original tool: hover the planned champion whenever nothing is hovered yet.
+        # Pick intent (planning phase): PATCH championId on the own pick action, like the League client itself does.
         if not options["auto_pick_champs"]:
             return
         me = own_player(session)
         if me.get("championId") or me.get("championPickIntent"):
             return
-        mine = next((a for a in actions(session) if a.get("actorCellId") == session.get("localPlayerCellId")
-                     and a.get("type") == "pick" and not a.get("completed")), None)
-        if not mine or mine.get("championId"):
+        mine = [a for a in actions(session) if a.get("actorCellId") == session.get("localPlayerCellId")
+                and a.get("type") == "pick" and not a.get("completed")]
+        if not mine or any(a.get("championId") for a in mine):
             return
-        key = ("hover", mine["id"])
-        if time.monotonic() - self.attempted.get(key, 0) < 1.0:
+        if time.monotonic() - self.attempted.get("hover", 0) < 1.0:
             return
-        self.attempted[key] = time.monotonic()
+        self.attempted["hover"] = time.monotonic()
         champion = choose(session, options, "pick")
         if not champion:
             return
-        status, _ = await self.request("PATCH", f"{SELECT}/actions/{mine['id']}", {"championId": champion, "completed": True})
-        LOG.info("Pick-Intent %s auf Aktion %s: HTTP %s", champion, mine["id"], status)
+        for action in mine:
+            status, _ = await self.request("PATCH", f"{SELECT}/actions/{action['id']}", {"championId": champion})
+            LOG.info("Pick-Intent %s auf Aktion %s (Timer %s): HTTP %s", champion, action["id"],
+                     (session.get("timer") or {}).get("phase"), status)
 
     async def automate(self, session):
         options = self.settings.snapshot()

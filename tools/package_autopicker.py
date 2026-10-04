@@ -4,8 +4,8 @@ from pathlib import Path
 import shutil
 import zipfile
 
-VERSION = "2.2.1"
-NAME = f"LoL-Autopicker-{VERSION}-Verbindungsfix.zip"
+VERSION = "2.3"
+NAME = f"LoL-Autopicker-{VERSION}.zip"
 ROOT = Path(__file__).resolve().parents[1] / "autopicker"
 for family in ("chromium", "firefox"):
     shutil.copy2(ROOT / "extension/shared/background.js", ROOT / f"extension/{family}/background.js")

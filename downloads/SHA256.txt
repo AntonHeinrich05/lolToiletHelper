@@ -1,1 +1,1 @@
-9626f3edc1f07a1b388a970386cb04fa709d29a131ab1ca52d033744db8f4661  LoL-Autopicker-2.2.1-Verbindungsfix.zip
+57e8393db222f3d0923ce894848f3d439121cf529f215a0f23d2edf7aa9cdc32  LoL-Autopicker-2.3.zip

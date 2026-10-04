@@ -1,8 +1,14 @@
-# LoL Autopicker 2.2.1 — Originaldesign, Verbindungsfix + Pick/Ban wie im Original
+# LoL Autopicker 2.3 — Originaldesign, Verbindungsfix, Pick/Ban wie im Original
 
 Windows-Python-Programm mit deiner ursprünglichen Oberfläche. Kein Expo, keine Handy-App, kein Konto.
 
-## Update von 2.1 auf 2.2 — nur Dateien ersetzen
+## Neu in 2.3
+
+- **Setup.bat installiert Python selbst:** Fehlt Python 3.11+, lädt `Setup.bat` Python 3.12 von python.org herunter (Fallback: `winget`) und installiert es für den aktuellen Benutzer. Danach wird wie bisher die `.venv` angelegt. Eine EXE ist nicht nötig und würde von Virenscannern ohnehin oft gelöscht.
+- **Pick-Intent in der Vorauswahl:** Sobald die Champion-Auswahl beginnt und noch nichts gehovert ist, wird der geplante Champion als Absicht gesetzt (`PATCH championId`, ohne Bestätigen) – so wie es der League-Client selbst beim Anklicken macht. Jeder Versuch steht mit Timer-Phase und HTTP-Status im Protokoll.
+- **Rahmenfarben nach dem Lock-in:** Ist der eigene Pick bestätigt, bleibt nur dieser blau; alle anderen Auto-Picks werden grau. Vor dem Lock-in zeigen die Rahmen weiterhin gebannt/vergriffen und Bad-Matchup an.
+
+## Update von 2.1 auf 2.2/2.3 — nur Dateien ersetzen
 
 1. Autopicker vollständig beenden.
 2. ZIP entpacken und **den Inhalt** des enthaltenen Programmordners in deinen **bisherigen Autopicker-Ordner** kopieren; Dateien ersetzen. `.venv` und `native_manifests` dort behalten.

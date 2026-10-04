@@ -1,4 +1,4 @@
-# Testergebnis — Version 2.2.1
+# Testergebnis — Version 2.3
 
 **44 Python-Tests und 7 Browserlogik-Tests bestanden.**
 
