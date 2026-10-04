@@ -1,0 +1,142 @@
+"""End-to-end LCU worker tests against a simulated HTTPS/WebSocket League client."""
+import asyncio
+import contextlib
+import os
+import time
+
+import pytest
+
+from lolpicker import lcu
+from mock_lcu import MockLCU
+
+pytestmark = pytest.mark.asyncio
+
+
+class Settings:
+    def __init__(self, lockfile):
+        self.value = {"lockfile_path": str(lockfile), "auto_ready_enabled": True, "auto_pick_enabled": True,
+                      "auto_pick_champs": [266, 10], "auto_ban_champs": [51], "bad_matchups": {"266": [222]}}
+
+    def snapshot(self):
+        return dict(self.value)
+
+
+def champ_select(pick_in_progress=False, ban_in_progress=False):
+    return {
+        "localPlayerCellId": 1, "queueId": 420,
+        "myTeam": [{"cellId": 1, "assignedPosition": "top", "championId": 0, "championPickIntent": 0},
+                   {"cellId": 2, "assignedPosition": "jungle", "championId": 0, "championPickIntent": 64}],
+        "theirTeam": [{"cellId": 6, "assignedPosition": "top", "championId": 0}],
+        "actions": [[{"id": 1, "type": "ban", "actorCellId": 1, "isInProgress": ban_in_progress, "completed": False, "championId": 0}],
+                    [{"id": 2, "type": "pick", "actorCellId": 1, "isInProgress": pick_in_progress, "completed": False, "championId": 0}]],
+        "bans": {"myTeamBans": [], "theirTeamBans": []},
+        "timer": {"phase": "PLANNING"},
+    }
+
+
+async def wait_for(predicate, timeout=5):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        await asyncio.sleep(0.05)
+    return predicate()
+
+
+@contextlib.asynccontextmanager
+async def running(tmp_path, mock, **mock_kwargs):
+    await mock.start()
+    lockfile = tmp_path / "lockfile"
+    lockfile.write_text(mock.lockfile(os.getpid()), encoding="utf-8")
+    events = []
+    settings = Settings(lockfile)
+    monkeypatched = lcu.asyncio.to_thread
+
+    async def inline(fn, *args):
+        return fn(*args)
+
+    lcu.asyncio.to_thread = inline
+    worker = lcu.LCUWorker(settings, events.append)
+    task = asyncio.create_task(worker.main())
+    try:
+        yield worker, events, settings, lockfile
+    finally:
+        lcu.asyncio.to_thread = monkeypatched
+        worker.stopped.set()
+        task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await task
+        await mock.stop()
+
+
+def statuses(events):
+    return [e["connected"] for e in events if e["type"] == "status"]
+
+
+# lcu.py: a server that never answers WebSocket pings and returns 500 while booting must not flicker
+async def test_connection_is_stable_without_pongs_and_with_startup_errors(tmp_path):
+    mock = MockLCU(answer_pings=False, reject_first_requests=3)
+    async with running(tmp_path, mock) as (worker, events, _settings, _lockfile):
+        assert await wait_for(lambda: statuses(events) == [True])
+        await asyncio.sleep(2.5)
+        assert statuses(events) == [True]
+        assert worker.connected is True
+
+
+# lcu.py: closing League and starting it again with new port/password reconnects automatically
+async def test_reconnects_after_league_restart_with_new_credentials(tmp_path):
+    mock = MockLCU(password="first")
+    async with running(tmp_path, mock) as (worker, events, _settings, lockfile):
+        assert await wait_for(lambda: statuses(events) == [True])
+        await mock.stop()
+        assert await wait_for(lambda: statuses(events) == [True, False], timeout=8)
+        assert [e for e in events if e["type"] == "phase"][-1]["phase"] == "None"
+        lockfile.unlink()
+        await asyncio.sleep(2.5)
+        assert statuses(events) == [True, False]
+        restarted = MockLCU(password="second")
+        await restarted.start()
+        lockfile.write_text(restarted.lockfile(os.getpid()), encoding="utf-8")
+        try:
+            assert await wait_for(lambda: statuses(events) == [True, False, True], timeout=10)
+            assert worker.base.endswith(str(restarted.port))
+        finally:
+            await restarted.stop()
+
+
+# lcu.py: ready check accepted once via WebSocket event, phase badge forwarded
+async def test_ready_check_accept_via_event(tmp_path):
+    mock = MockLCU()
+    async with running(tmp_path, mock) as (_worker, events, _settings, _lockfile):
+        assert await wait_for(lambda: statuses(events) == [True])
+        await mock.set_phase("ReadyCheck")
+        mock.state["ready"] = {"state": "InProgress", "playerResponse": "None"}
+        await mock.publish(lcu.READY, dict(mock.state["ready"]))
+        assert await wait_for(lambda: any(e["type"] == "ready_accepted" for e in events))
+        accepts = [c for c in mock.calls if c[0] == "POST" and c[1].endswith("/accept")]
+        assert len(accepts) == 1
+        assert any(e["type"] == "phase" and e["phase"] == "ReadyCheck" for e in events)
+
+
+# lcu.py: planning phase hovers intent, ban turn bans, pick turn avoids bad matchup and locks in
+async def test_hover_ban_and_pick_flow(tmp_path):
+    mock = MockLCU()
+    async with running(tmp_path, mock) as (worker, events, _settings, _lockfile):
+        assert await wait_for(lambda: statuses(events) == [True])
+        mock.state["session"] = champ_select()
+        mock.state["pickable"], mock.state["bannable"] = [266, 10], [51, 64]
+        await mock.set_phase("ChampSelect")
+        assert await wait_for(lambda: mock.state["session"]["actions"][1][0]["championId"] == 266)
+        assert worker.hovered is True
+        assert not any(c[0] == "POST" for c in mock.calls)
+
+        mock.state["session"]["actions"][0][0]["isInProgress"] = True
+        await mock.publish(lcu.SELECT, mock.state["session"])
+        assert await wait_for(lambda: mock.state["session"]["bans"]["myTeamBans"] == [51])
+
+        mock.state["session"]["theirTeam"][0]["championId"] = 222
+        mock.state["session"]["actions"][1][0]["isInProgress"] = True
+        await mock.publish(lcu.SELECT, mock.state["session"])
+        assert await wait_for(lambda: mock.state["session"]["myTeam"][0]["championId"] == 10)
+        assert await wait_for(lambda: any(e["type"] == "pick_status" and e["status"].get(266) == "bad_matchup" for e in events))
+        assert await wait_for(lambda: any(e["type"] == "draft" and e["champion_id"] == 10 for e in events))
