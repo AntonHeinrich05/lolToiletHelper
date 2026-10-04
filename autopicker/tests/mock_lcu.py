@@ -20,8 +20,9 @@ def make_ssl_context():
 
 
 class MockLCU:
-    def __init__(self, password="secret", answer_pings=True, reject_first_requests=0):
+    def __init__(self, password="secret", answer_pings=True, reject_first_requests=0, fail_completes=0):
         self.password = password
+        self.fail_completes = fail_completes
         self.answer_pings = answer_pings
         self.reject_first_requests = reject_first_requests
         self.state = {"phase": "None", "ready": {"state": "Invalid", "playerResponse": "None"}, "session": None,
@@ -68,6 +69,9 @@ class MockLCU:
             rest = path[len("/lol-champ-select/v1/session/actions/"):]
             if rest.endswith("/complete"):
                 identifier = int(rest[:-len("/complete")])
+                if self.fail_completes > 0:
+                    self.fail_completes -= 1
+                    return web.Response(status=500, text='{"message":"busy"}')
                 for group in self.state["session"]["actions"]:
                     for action in group:
                         if action["id"] == identifier:

@@ -90,7 +90,6 @@ class LCUWorker(threading.Thread):
         self.stopped = threading.Event()
         self.phase, self.queue_id = "None", 0
         self.ready_accepted = False
-        self.hovered = False
         self.completed = set()
         self.attempted = {}
         self.connected = False
@@ -116,7 +115,7 @@ class LCUWorker(threading.Thread):
 
     def reset_state(self):
         self.phase, self.queue_id = "None", 0
-        self.ready_accepted, self.hovered = False, False
+        self.ready_accepted = False
         self.completed.clear()
         self.attempted.clear()
 
@@ -266,7 +265,6 @@ class LCUWorker(threading.Thread):
                 if data != "ChampSelect":
                     self.completed.clear()
                     self.attempted.clear()
-                    self.hovered = False
                 if data in ("ChampSelect", "GameStart", "InProgress", "Reconnect"):
                     _, game = await self.request("GET", "/lol-gameflow/v1/session")
                     if isinstance(game, dict):
@@ -322,8 +320,8 @@ class LCUWorker(threading.Thread):
             self.emit({"type": "ready_accepted"})
 
     async def prehover(self, session, options):
-        # Declare pick intent early, like the original tool, so teammates see the planned champion.
-        if self.hovered or not options["auto_pick_champs"]:
+        # Pick intent like the original tool: hover the planned champion whenever nothing is hovered yet.
+        if not options["auto_pick_champs"]:
             return
         me = own_player(session)
         if me.get("championId") or me.get("championPickIntent"):
@@ -333,15 +331,14 @@ class LCUWorker(threading.Thread):
         if not mine or mine.get("championId"):
             return
         key = ("hover", mine["id"])
-        if time.monotonic() - self.attempted.get(key, 0) < 2:
+        if time.monotonic() - self.attempted.get(key, 0) < 1.0:
             return
         self.attempted[key] = time.monotonic()
         champion = choose(session, options, "pick")
         if not champion:
             return
-        status, _ = await self.request("PATCH", f"{SELECT}/actions/{mine['id']}", {"championId": champion})
-        if status < 300:
-            self.hovered = True
+        status, _ = await self.request("PATCH", f"{SELECT}/actions/{mine['id']}", {"championId": champion, "completed": True})
+        LOG.info("Pick-Intent %s auf Aktion %s: HTTP %s", champion, mine["id"], status)
 
     async def automate(self, session):
         options = self.settings.snapshot()
@@ -351,38 +348,30 @@ class LCUWorker(threading.Thread):
         if not action:
             await self.prehover(session, options)
             return
-        if action["id"] in self.completed:
-            return
         identifier = action["id"]
-        if time.monotonic() - self.attempted.get(identifier, 0) < 0.6:
+        if time.monotonic() - self.attempted.get(identifier, 0) < 1.0:
             return
         self.attempted[identifier] = time.monotonic()
-        # Reject stale event data, dodged lobbies and previous turns before PATCH.
+        # Fresh state guards against stale queued events; retried every second until the LCU marks it completed.
         _, fresh = await self.request("GET", SELECT)
-        if not isinstance(fresh, dict):
-            return
-        current = active_action(fresh)
-        if not current or current["id"] != identifier or current.get("type") != action.get("type"):
-            return
-        resource = "pickable-champion-ids" if action["type"] == "pick" else "bannable-champion-ids"
-        _, allowed = await self.request("GET", f"/lol-champ-select/v1/{resource}")
-        if not isinstance(allowed, list):
-            return  # fail closed rather than lock an unowned/unavailable champion
-        fresh["pickableChampionIds" if action["type"] == "pick" else "bannableChampionIds"] = allowed
-        champion = choose(fresh, options, action["type"])
+        if isinstance(fresh, dict):
+            current = active_action(fresh)
+            if not current or current["id"] != identifier or current.get("type") != action.get("type"):
+                return
+            session = fresh
+        champion = choose(session, options, action["type"])
         if not champion:
+            LOG.info("Kein %s-Champion verfügbar (Aktion %s)", action["type"], identifier)
             return
         path = f"{SELECT}/actions/{identifier}"
-        status, _ = await self.request("PATCH", path, {"championId": champion, "completed": False})
+        status, _ = await self.request("PATCH", path, {"championId": champion, "completed": True})
+        LOG.info("%s %s: Hover HTTP %s", action["type"].capitalize(), champion, status)
         if status >= 300:
             return
-        _, latest = await self.request("GET", SELECT)
-        latest_action = active_action(latest) if isinstance(latest, dict) else None
-        if not latest_action or latest_action["id"] != identifier or latest_action.get("championId") != champion:
-            return
+        await asyncio.sleep(0.12)
         if not self.settings.snapshot()["auto_pick_enabled"]:
             return
         status, _ = await self.request("POST", path + "/complete")
+        LOG.info("%s %s: Bestätigung HTTP %s", action["type"].capitalize(), champion, status)
         if status < 300:
             self.completed.add(identifier)
-            self.hovered = True

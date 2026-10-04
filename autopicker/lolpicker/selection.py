@@ -27,9 +27,13 @@ def available(session, champion, action_type="pick"):
     banned.update(a.get("championId") for a in actions(session) if a.get("type") == "ban" and a.get("completed"))
     if champion in banned:
         return False
-    # Only locked picks exclude champions, not our own hover. Avoid banning team hovers.
+    # Only locked picks and other players' selections exclude champions, never our own hover.
     for action in actions(session):
         if action.get("type") == "pick" and action.get("completed") and action.get("championId") == champion:
+            return False
+    me = session.get("localPlayerCellId")
+    for player in session.get("myTeam", []) + session.get("theirTeam", []):
+        if player.get("cellId") != me and player.get("championId") == champion:
             return False
     if action_type == "ban":
         for player in session.get("myTeam", []):

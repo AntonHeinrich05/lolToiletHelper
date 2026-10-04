@@ -1,4 +1,4 @@
-# LoL Autopicker 2.2 — Originaldesign, Verbindungsfix
+# LoL Autopicker 2.2.1 — Originaldesign, Verbindungsfix + Pick/Ban wie im Original
 
 Windows-Python-Programm mit deiner ursprünglichen Oberfläche. Kein Expo, keine Handy-App, kein Konto.
 
@@ -13,7 +13,7 @@ Windows-Python-Programm mit deiner ursprünglichen Oberfläche. Kein Expo, keine
 - **Kein Flackern mehr zwischen „Verbunden“ und „Getrennt“.** Vorher beendete jede einzelne fehlgeschlagene oder langsame Anfrage (3-Sekunden-Limit, Keep-Alive-Abbruch durch den Client, 401/403, fehlende WebSocket-Pong-Antworten) die komplette Verbindung. Jetzt werden einzelne Anfragen protokolliert und wiederholt; erst nach vier Fehlschlägen in Folge oder wenn der League-WebSocket wirklich schließt, wird neu verbunden.
 - **League schließen und neu starten:** Der Autopicker erkennt den neuen Port und das neue Passwort automatisch (Prüfung alle 1,5 Sekunden) und zeigt in der Zwischenzeit „Getrennt“ mit zurückgesetzter Spielphase.
 - **Zugangsdaten wie beim ursprünglich funktionierenden Tool:** zuerst aus der Befehlszeile von `LeagueClientUx.exe` (wie `lcu-driver`), danach aus dem `lockfile` neben dem Client und zuletzt aus `C:\Riot Games\League of Legends\lockfile`.
-- **Pick-Intent wieder wie früher:** In der Planungsphase wird der erste passende Champion sofort gehovert, damit das Team ihn sieht. Beim eigenen Zug wird die Wahl mit Gegner-Picks und Bad-Matchups neu bewertet, dann gehovert, geprüft und eingeloggt.
+- **Pick und Ban exakt wie in der ursprünglich funktionierenden Datei (2.2.1):** Solange nichts gehovert ist, wird der geplante Champion jede Sekunde als Pick-Intent gesetzt (manuelles Hovern wird nicht überschrieben). Im eigenen Zug: `PATCH championId + completed=true` → 120 ms warten → `POST …/complete`. Schlägt die Bestätigung fehl, wird jede Sekunde erneut versucht, bis der Client die Aktion als abgeschlossen meldet. Die frühere Vorab-Prüfung über `pickable-champion-ids`, die Picks blockieren konnte, ist entfernt. Jeder Schritt steht mit HTTP-Status im Protokoll.
 - Unerwartete Fehler bei der Verarbeitung von Client-Daten beenden den Verbindungs-Thread nicht mehr, sondern landen im Protokoll `%LOCALAPPDATA%\LoLAutopicker\autopicker.log`.
 
 ## Update von 2.0 — Opera ist schon eingerichtet

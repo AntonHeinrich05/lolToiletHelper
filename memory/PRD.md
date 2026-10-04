@@ -37,6 +37,12 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 - Tests: `tests/mock_lcu.py` (simulierter LCU HTTPS+WS), `test_lcu_mock_server.py`, `test_lcu_discovery.py`; 43 Python-Tests bestanden (iteration_4), Backend-Download-Routen geprüft.
 - Download: `/app/downloads/LoL-Autopicker-2.2-Verbindungsfix.zip`, Backend liefert direkt aus `/app/downloads` (`/api/autopicker/download/{filename}`, `/api/autopicker/downloads`); Object-Storage-Manifest entfernt.
 
+## Implementiert — 2026-10-04 (Session 2.2.1, Pick/Ban wie Original)
+- Nutzer-Log bestätigt: Verbindung + Reconnect nach League-Neustart funktionieren. Pick/Ban wurde nicht bestätigt, Pick-Intent fehlte.
+- `automate()` folgt jetzt exakt der Original-Datei: PATCH {championId, completed:true} → 0,12s → POST /complete; Wiederholung jede Sekunde solange die Aktion offen ist; `pickable-champion-ids`-Gate und GET-Verifikation entfernt; INFO-Logs mit HTTP-Status pro Schritt.
+- `prehover()`: Pick-Intent jede Sekunde solange nichts gehovert ist (manuelles Hovern bleibt). `available()` schließt auch Champions aus, die andere Spieler gewählt haben.
+- 44 Tests grün; ZIP LoL-Autopicker-2.2.1-Verbindungsfix.zip.
+
 ## Backlog / nächste Schritte
 ### P0 — manuelle Abnahme
 - Nutzer prüft 2.2 auf Windows: Verbinden, League schließen/neu starten, Ready, Hover/Ban/Pick (Linux kann League nicht ausführen).

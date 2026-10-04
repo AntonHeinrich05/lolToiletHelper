@@ -97,7 +97,7 @@ async def test_automate_pick_patch_then_complete(fake_settings):
     await worker.automate(session)
 
     patch = [c for c in calls if c[0] == "PATCH"][0]
-    assert patch[2] == {"championId": 266, "completed": False}
+    assert patch[2] == {"championId": 266, "completed": True}
     assert any(c[0] == "POST" and c[1].endswith("/complete") for c in calls)
     assert 111 in worker.completed
 
@@ -126,16 +126,17 @@ async def test_automate_no_post_when_patch_fails_or_disallowed(fake_settings):
     assert not any(c[0] == "POST" and c[1].endswith("/complete") for c in calls)
 
     calls.clear()
+    worker.attempted = {}
+    taken = _base_session("pick", 222)
+    taken["myTeam"].append({"cellId": 2, "championId": 266})
 
-    async def disallowed_request(method, path, body=None):
+    async def taken_request(method, path, body=None):
         calls.append((method, path, body))
         if method == "GET" and path == SELECT:
-            return 200, _base_session("pick", 222)
-        if method == "GET" and path.endswith("pickable-champion-ids"):
-            return 200, []
+            return 200, taken
         return 200, {}
 
-    worker.request = disallowed_request
+    worker.request = taken_request
     await worker.automate(session)
     assert not any(c[0] == "PATCH" for c in calls)
 

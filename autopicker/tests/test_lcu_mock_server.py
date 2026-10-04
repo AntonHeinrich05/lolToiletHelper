@@ -127,8 +127,8 @@ async def test_hover_ban_and_pick_flow(tmp_path):
         mock.state["pickable"], mock.state["bannable"] = [266, 10], [51, 64]
         await mock.set_phase("ChampSelect")
         assert await wait_for(lambda: mock.state["session"]["actions"][1][0]["championId"] == 266)
-        assert worker.hovered is True
         assert not any(c[0] == "POST" for c in mock.calls)
+        assert mock.state["session"]["myTeam"][0]["championPickIntent"] == 266
 
         mock.state["session"]["actions"][0][0]["isInProgress"] = True
         await mock.publish(lcu.SELECT, mock.state["session"])
@@ -140,3 +140,17 @@ async def test_hover_ban_and_pick_flow(tmp_path):
         assert await wait_for(lambda: mock.state["session"]["myTeam"][0]["championId"] == 10)
         assert await wait_for(lambda: any(e["type"] == "pick_status" and e["status"].get(266) == "bad_matchup" for e in events))
         assert await wait_for(lambda: any(e["type"] == "draft" and e["champion_id"] == 10 for e in events))
+
+
+# lcu.py: a failed lock-in is retried every second until the LCU marks the action completed
+async def test_lock_in_is_retried_until_completed(tmp_path):
+    mock = MockLCU(fail_completes=2)
+    async with running(tmp_path, mock) as (_worker, events, _settings, _lockfile):
+        assert await wait_for(lambda: statuses(events) == [True])
+        mock.state["session"] = champ_select(pick_in_progress=True)
+        await mock.set_phase("ChampSelect")
+        assert await wait_for(lambda: mock.state["session"]["myTeam"][0]["championId"] == 266, timeout=8)
+        completes = [c for c in mock.calls if c[0] == "POST" and c[1].endswith("/complete")]
+        assert len(completes) == 3
+        patches = [c for c in mock.calls if c[0] == "PATCH"]
+        assert all('"completed": true' in c[2] for c in patches)
