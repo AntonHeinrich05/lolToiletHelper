@@ -32,6 +32,8 @@ def test_listing_returns_zip(api):
     data = r.json()
     assert isinstance(data, list)
     assert ZIP_NAME in data
+    assert "README.md" in data
+    assert "SHA256.txt" in data
 
 
 # --- download zip ---
@@ -71,6 +73,11 @@ def test_download_zip_contains_expected_files(zip_body):
         assert bg_path in names
         bg = z.read(bg_path).decode("utf-8", errors="replace")
         assert "close_lolalytics" in bg
+        # 2.7.0 manifest version check
+        manifest_path = f"{ZIP_PREFIX}/extension/chromium/manifest.json"
+        assert manifest_path in names
+        manifest = z.read(manifest_path).decode("utf-8", errors="replace")
+        assert '"2.7.0"' in manifest, f"manifest.json missing version 2.7.0: {manifest[:200]}"
 
 
 # --- error cases ---

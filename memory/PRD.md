@@ -122,3 +122,16 @@ Der Nutzer verlangt ausdrücklich die ursprüngliche Tk-Oberfläche (Screenshot,
 ### Noch offen
 - Nutzer prüft native Windows-Transparenz/Hotkeys, tatsächliche Opera-Verbindungszeit und WM_CLOSE mit ungespeicherten Tabs. Linux-/simulierte Schnittstellen ersetzen diese Abnahme nicht.
 - Firefox-Signatur/Defender-Fehlalarmdiagnose bleiben unverändert offen. Keine Expo-App liefern oder Desktop-Design eigenmächtig wieder ändern.
+
+## Implementiert — 2026-10-06 (Session 2.7.0, Rückmeldung 3)
+- Nutzerwünsche wörtlich oben in `autopicker/README.md`. Repo-Branch `fast-finished` nach /app übernommen (Vorlage war leer).
+- `lcu.py`: Beschwörerzauber beim Hover/Pick-Intent (`prepare_spells` als Task, einmal pro gehovertem Champion, Runenseite weiter beim Lock-in; `loadout_for` cached Lolalytics-Import pro ChampSelect). Ban-Status `teammate` (Mate hovert/intendiert den Champ → übersprungen).
+- `lolalytics.py`: `page_state/parse_counters/fetch_counters` (Build-Seite `enemy[lane]`: Winrate aufsteigend, Mindestspiele 1000 solange ≥5 bleiben, max 30) und `parse_tierlist/fetch_bans` (Tierlist `cid/row.br`, Banrate absteigend, ~20 Zeilen serverseitig).
+- UI: `SuggestionList` (5 pro Seite, „Mehr laden“, Klick übernimmt, vorhandene ✓ grau), „⤓ Bans“ im Rollen-Dropdown-Zeile (bisher „⤓ Lolalytics“ → „⤓ Runen“), „⤓ Hardcounter (Lolalytics)“ im Bad-Matchup-Panel; `ChampRow.set_hint` („Mate will – übersprungen“, grauer Rahmen #4a4a4a); fester unterer Rand `bottom_pad` 5px (side=BOTTOM), champ_frame pady (4,1).
+- Standard All Ranks/30 Tage: `build_url` trägt `patch=30`, `with_default_patch` für gespeicherte URLs, Migration schema 3→4 setzt Import-Patch „7“ auf „30“.
+- Alt+Shift+4: `controller.close_browsers` sendet Befehl `close` (wie Alt+Shift+3, kennt jede Erweiterungsversion) an alle Clients, Fallback auf bevorzugten Browser; Win32-Titelfallback `is_lolalytics_title` (Lolalytics-Titel enthalten das Wort „Lolalytics“ nicht: „Viego Build, Runes & Counters Guide …“).
+- Tests: 61 Python + 8 JS + 7 Backend grün (iteration_7); Screenshots `/app/test_reports/overlay_*.png` via `tools/shot_overlay_states.py`. ZIP `LoL-Autopicker-2.7.0.zip` (Erweiterung 2.7.0, Neu-Laden nicht zwingend).
+
+### Offen / nächste Schritte
+- Windows-Abnahme: Zauber vorab im echten Client, Alt+Shift+4 mit Opera GX, Ban-/Hardcounter-Vorschläge live, unterer Rand.
+- Optional: Hardcounter auch für andere Lanes auswählbar; Bad-Matchup-Limit (6) erhöhen; Import-Vorschau (Winrate/Spiele der Runenseite).
