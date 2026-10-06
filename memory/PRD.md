@@ -67,6 +67,13 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 - Hotkeys: INFO-Log „Hotkey empfangen“. VS-Button-Logik unverändert (erscheint bei bekanntem Gegner aus Draft-Rolle oder Live-Daten).
 - Tests: 49 Python + 7 JS grün (iteration_5), ZIP LoL-Autopicker-2.4.0.zip, Erweiterungs-Manifest 2.4.0 (Neu laden nötig).
 
+## Implementiert — 2026-10-06 (Session 2.5.0)
+- Nutzer-Feedback wörtlich oben in README. Beschwörerzauber: PATCH my-selection + Verifikation in der Session, bis 4 Versuche (`lcu.set_spells`).
+- `flash_side` (D/F) Einstellung; Jungle-Fallback Flash+Smite bzw. optionale `jungle_spells` pro Loadout (eingeklappt im Runen-Fenster) – `lolalytics.spells_for_role`.
+- Rollen-Picklisten: `role_lists`/`list_role` in storage, Dropdown „Liste für“ im Overlay, `selection.effective_lists` (zugewiesene Rolle → Rollenliste, sonst Allgemein) in choose() und pick_status.
+- Lolalytics-Import: `lolalytics.py` parst Qwik-State der Build-Seite (summary.pick/win → runes.set + sums.ids); Einstellungen Rang/Zeitraum-Patch/Build (Default all/30/pick), Auto-Import beim Lock-in ohne eigenes Loadout (`lcu.import_loadout`), Buttons „⤓ Lolalytics“ (Liste) und „⤓ Von Lolalytics“ (Fenster). Veraltete Runen nach Patch werden erkannt (validate) und nicht gesetzt.
+- 55 Python + 7 JS Tests grün; ZIP 2.5.0.
+
 ## Backlog / nächste Schritte
 - Windows-Abnahme durch Nutzer: Spielfenster-Erkennung, Browser-Fokus im Spiel, Hotkeys bei fokussiertem Spiel, echte LCU-Runen-Endpunkte.
 - Optional: Runenseiten-Import aus Lolalytics, Rollen-Picklisten, Dodge-Warnung.

@@ -10,8 +10,9 @@ import threading
 import time
 import aiohttp
 import psutil
-from .selection import actions, active_action, available, choose, own_player, roster, draft_opponent
+from .selection import actions, active_action, available, choose, own_player, roster, draft_opponent, effective_lists
 from .runes import page_body
+from .lolalytics import fetch_build, to_loadout, spells_for_role
 
 LOG = logging.getLogger(__name__)
 PHASE = "/lol-gameflow/v1/gameflow-phase"
@@ -85,10 +86,11 @@ def discover(configured=""):
 
 
 class LCUWorker(threading.Thread):
-    def __init__(self, settings, emit, names=None):
+    def __init__(self, settings, emit, names=None, runes=None):
         super().__init__(daemon=True, name="LCU")
         self.settings, self.emit = settings, emit
         self.names = names or {}
+        self.runes = runes
         self.stopped = threading.Event()
         self.phase, self.queue_id = "None", 0
         self.ready_accepted = False
@@ -301,8 +303,9 @@ class LCUWorker(threading.Thread):
             selected = me.get("championId") or me.get("championPickIntent")
             locked = any(a.get("type") == "pick" and a.get("completed") and a.get("actorCellId") == data.get("localPlayerCellId")
                          for a in actions(data))
+            lists = effective_lists(options, me.get("assignedPosition"))
             states = {}
-            for champion in options["auto_pick_champs"]:
+            for champion in lists["auto_pick_champs"]:
                 if champion == selected:
                     states[champion] = "hovered"
                 elif locked:
@@ -316,22 +319,43 @@ class LCUWorker(threading.Thread):
             my_bans = {a.get("championId") for a in actions(data) if a.get("type") == "ban" and a.get("completed")
                        and a.get("actorCellId") == data.get("localPlayerCellId")}
             ban_states = {}
-            for champion in options["auto_ban_champs"]:
+            for champion in lists["auto_ban_champs"]:
                 if champion in my_bans:
                     ban_states[champion] = "hovered"  # our own completed ban: blue like a locked pick
                 elif not available(data, champion, "ban"):
                     ban_states[champion] = "banned"
                 else:
                     ban_states[champion] = "ok"
-            self.emit({"type": "pick_status", "status": states, "ban_status": ban_states})
-            loadouts = options.get("loadouts", {})
-            if locked and selected and str(selected) in loadouts and selected not in self.loadout_done:
-                await self.apply_loadout(selected, loadouts[str(selected)])
+            self.emit({"type": "pick_status", "status": states, "ban_status": ban_states, "role": me.get("assignedPosition", "")})
+            if locked and selected and selected not in self.loadout_done:
+                self.loadout_done.add(selected)
+                loadout = options.get("loadouts", {}).get(str(selected))
+                if not loadout and (options.get("lolalytics_import") or {}).get("enabled"):
+                    loadout = await self.import_loadout(selected, me.get("assignedPosition", ""), options["lolalytics_import"])
+                if loadout:
+                    await self.apply_loadout(selected, loadout, me.get("assignedPosition", ""), options.get("flash_side", "left"))
             await self.automate(data)
 
-    async def apply_loadout(self, champion, loadout):
+    async def import_loadout(self, champion, role, settings):
+        """No own loadout: take the Lolalytics page (rank/patch/build as configured) for the assigned lane."""
+        name = self.names.get(champion, str(champion))
+        try:
+            build = await asyncio.to_thread(fetch_build, name, role, settings["tier"], settings["patch"], settings["build"])
+            loadout = to_loadout(build, self.runes, self.settings.snapshot().get("flash_side", "left"))
+        except (OSError, ValueError, KeyError, AttributeError) as error:
+            LOG.info("Lolalytics-Import für %s fehlgeschlagen: %s", name, error)
+            self.emit({"type": "notice", "text": f"Lolalytics-Runen für {name} nicht geladen"})
+            return None
+        LOG.info("Lolalytics-Runen für %s (%s) importiert", name, role or "Standard-Lane")
+        return loadout
+
+    async def apply_loadout(self, champion, loadout, role="", flash_side="left"):
         """After lock-in: own rune page 'Autopicker <Champion>' + summoner spells, like the client would do."""
         self.loadout_done.add(champion)
+        if self.runes is not None and not self.runes.validate(loadout):
+            LOG.info("Gespeicherte Runen für %s passen nicht mehr zum aktuellen Patch; Seite wird nicht gesetzt", champion)
+            self.emit({"type": "notice", "text": f"Runen für {self.names.get(champion, champion)} veraltet – bitte neu wählen"})
+            loadout = {**loadout, "perks": None}
         name = f"Autopicker {self.names.get(champion, champion)}"
         status, pages = await self.request("GET", "/lol-perks/v1/pages")
         pages = pages if isinstance(pages, list) else []
@@ -345,15 +369,30 @@ class LCUWorker(threading.Thread):
             oldest = min(remaining, key=lambda p: p.get("lastModified", 0))
             status, _ = await self.request("DELETE", f"/lol-perks/v1/pages/{oldest['id']}")
             LOG.info("Runenseiten voll: älteste Seite '%s' ersetzt (HTTP %s)", oldest.get("name"), status)
-        status, page = await self.request("POST", "/lol-perks/v1/pages", page_body(name, loadout))
-        LOG.info("Runenseite '%s' angelegt: HTTP %s", name, status)
-        if status < 300 and isinstance(page, dict) and page.get("id") is not None:
-            status, _ = await self.request("PUT", "/lol-perks/v1/currentpage", page["id"])
-            LOG.info("Runenseite aktiviert: HTTP %s", status)
-        spells = loadout["spells"]
-        status, _ = await self.request("PATCH", SELECT + "/my-selection", {"spell1Id": spells[0], "spell2Id": spells[1]})
-        LOG.info("Beschwörerzauber %s/%s gesetzt: HTTP %s", spells[0], spells[1], status)
+        if loadout.get("perks"):
+            status, page = await self.request("POST", "/lol-perks/v1/pages", page_body(name, loadout))
+            LOG.info("Runenseite '%s' angelegt: HTTP %s", name, status)
+            if status < 300 and isinstance(page, dict) and page.get("id") is not None:
+                status, _ = await self.request("PUT", "/lol-perks/v1/currentpage", page["id"])
+                LOG.info("Runenseite aktiviert: HTTP %s", status)
+        spells = spells_for_role(loadout, role, flash_side)
+        await self.set_spells(spells)
         self.emit({"type": "notice", "text": f"Runen & Zauber gesetzt: {self.names.get(champion, champion)}"})
+
+    async def set_spells(self, spells):
+        """PATCH my-selection, then verify in the session; retried a few times because the client ignores early PATCHes."""
+        for attempt in range(1, 5):
+            status, _ = await self.request("PATCH", SELECT + "/my-selection", {"spell1Id": spells[0], "spell2Id": spells[1]})
+            await asyncio.sleep(0.4)
+            _, session = await self.request("GET", SELECT)
+            me = own_player(session) if isinstance(session, dict) else {}
+            current = [me.get("spell1Id"), me.get("spell2Id")]
+            LOG.info("Beschwörerzauber %s/%s setzen (Versuch %s): HTTP %s, Client zeigt %s", spells[0], spells[1], attempt, status, current)
+            if current == list(spells):
+                return True
+            if status in (401, 403, 404):
+                break
+        return False
 
     async def accept_ready(self, data):
         if not isinstance(data, dict) or not self.settings.snapshot()["auto_ready_enabled"] or self.ready_accepted:

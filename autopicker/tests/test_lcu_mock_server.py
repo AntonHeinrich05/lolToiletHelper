@@ -205,3 +205,24 @@ async def test_locked_pick_applies_runes_and_spells_once(tmp_path):
         await mock.publish("/lol-champ-select/v1/session", session)
         await asyncio.sleep(0.3)
         assert sum(1 for c in mock.calls if c[0] == "POST" and c[1] == "/lol-perks/v1/pages") == 1
+
+
+# lcu.py: assigned jungle without Smite in the saved spells -> Flash + Smite on the preferred side, verified in the session
+async def test_jungle_spell_fallback_and_flash_side(tmp_path):
+    mock = MockLCU()
+    session = champ_select()
+    session["myTeam"][0].update(championId=266, assignedPosition="jungle")
+    session["actions"][1][0].update(completed=True, championId=266)
+    mock.state["session"] = session
+    loadout = {"primary": 8000, "sub": 8100, "perks": [8010, 9111, 9104, 8014, 8139, 8135], "shards": [5008, 5008, 5001], "spells": [4, 12]}
+    async with running(tmp_path, mock) as (worker, events, settings, _):
+        settings.value["loadouts"] = {"266": loadout}
+        settings.value["flash_side"] = "right"
+        assert await wait_for(lambda: True in statuses(events))
+        await mock.set_phase("ChampSelect")
+        await mock.publish("/lol-champ-select/v1/session", session)
+        assert await wait_for(lambda: mock.state["my_selection"].get("spell1Id") == 11)
+        assert mock.state["my_selection"] == {"spell1Id": 11, "spell2Id": 4}
+        assert session["myTeam"][0]["spell1Id"] == 11
+        patches = [c for c in mock.calls if c[0] == "PATCH" and c[1].endswith("/my-selection")]
+        assert len(patches) == 1  # verified after the first PATCH, no blind retries

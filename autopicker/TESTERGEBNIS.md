@@ -1,3 +1,11 @@
+# Testergebnis — Version 2.5.0
+
+**55 Python-Tests und 7 Browserlogik-Tests bestanden.**
+
+Neu in 2.5 geprüft: Lolalytics-Seitenparser (Qwik-State → Runen, Statusrunen, Zauber), Stil-Ableitung aus Data Dragon, Flash-Seite links/rechts, Jungle-Fallback Flash + Smite bzw. eigene Jungle-Zauber, Validierung/Speicherung von `role_lists`, `list_role`, `flash_side`, `lolalytics_import`; `choose()` nutzt die Liste der zugewiesenen Rolle; simulierter League-Client: Zauber werden gesetzt und in der Session verifiziert (ein PATCH, kein blindes Wiederholen); Tk: Rollen-Dropdown wechselt und speichert Listen pro Rolle, Lolalytics-Import (gemockt) füllt `loadouts` und färbt ✦ gold.
+
+Echte Lolalytics-Abfrage wurde einmalig manuell gegen die Live-Seite geprüft (Ahri, Mid, All Ranks, 30 Tage); Seitenaufbau von Lolalytics kann sich ändern – dann schlägt der Import mit Hinweis fehl, Pick/Ban bleiben unberührt.
+
 # Testergebnis — Version 2.4.0
 
 **49 Python-Tests und 7 Browserlogik-Tests bestanden.**

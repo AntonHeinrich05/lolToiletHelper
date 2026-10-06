@@ -1,5 +1,6 @@
 import tkinter as tk
 from .ui_widgets import ROW_BG
+from .lolalytics import TIERS, TIER_LABELS, BUILDS
 HOTKEY_LABELS = {'toggle_overlay': 'Overlay ein/aus', 'open_lolalytics': 'Lolalytics oeffnen', 'open_vs': 'VS-Matchup oeffnen', 'close_tab': 'Lolalytics-Tabs schliessen', 'close_all_browsers': 'Lolalytics-Tabs (alle Browser)'}
 
 class ClassicSettings:
@@ -81,6 +82,10 @@ class ClassicSettings:
         self.opacity_scales = {}
         self._build_opacity(alpha_frame, 'opacity_default', 'Deckkraft Client/Lobby', top=True)
         self._build_opacity(alpha_frame, 'opacity_ingame', 'Deckkraft im Spiel')
+        rune_frame = tk.Frame(wrap, bg=self.BG_PANEL, bd=1, relief='solid', highlightthickness=0)
+        rune_frame.configure(highlightbackground=self.BORDER)
+        rune_frame.pack(fill=tk.X, padx=10, pady=(8, 2))
+        self._build_runes_section(rune_frame)
         foot = tk.Frame(wrap, bg=self.BG)
         foot.pack(fill=tk.X, padx=10, pady=(10, 8))
         reset_btn = tk.Label(foot, text='↺  Auf Standard zuruecksetzen', bg=self.BG, fg='#5fa8d3', font=('Segoe UI', 7, 'underline'), cursor='hand2')
@@ -106,6 +111,73 @@ class ClassicSettings:
         btn.bind('<Enter>', lambda e, b=btn, a=action_id: b.config(bg=self.BTN_HOVER) if self._recording != a else None)
         btn.bind('<Leave>', lambda e, b=btn, a=action_id: b.config(bg=self.BTN_BG) if self._recording != a else None)
         self.row_buttons[action_id] = btn
+
+    def _toggle_button(self, row, text, command):
+        btn = tk.Label(row, text=text, bg=self.BTN_BG, fg='#f0e6d2', font=('Consolas', 8, 'bold'), padx=10, pady=2, cursor='hand2')
+        btn.pack(side=tk.RIGHT)
+        btn.bind('<Button-1>', lambda e: command())
+        return btn
+
+    def _menu_button(self, row, text, options, command):
+        btn = tk.Menubutton(row, text=f'{text} ▾', bg=self.BTN_BG, fg='#f0e6d2', activebackground=self.BTN_HOVER, activeforeground='#f0e6d2',
+                            font=('Consolas', 8, 'bold'), relief='flat', bd=0, padx=8, pady=2, cursor='hand2')
+        menu = tk.Menu(btn, tearoff=0, bg='#0a1a2b', fg=self.ACCENT, activebackground='#2a3a4a', activeforeground='#f0e6d2', font=('Segoe UI', 7), bd=0)
+        for value, label in options:
+            menu.add_command(label=label, command=lambda v=value, b=btn, l=label: (command(v), b.config(text=f'{l} ▾')))
+        btn.config(menu=menu)
+        btn.pack(side=tk.RIGHT)
+        return btn
+
+    def _row_label(self, parent, text, top=False):
+        row = tk.Frame(parent, bg=self.BG_PANEL)
+        row.pack(fill=tk.X, padx=6, pady=(6 if top else 2, 3))
+        tk.Label(row, text=text, bg=self.BG_PANEL, fg=self.LABEL_FG, font=('Segoe UI', 8), anchor='w').pack(side=tk.LEFT)
+        return row
+
+    def _build_runes_section(self, parent):
+        app = self.app
+        imp = app.lolalytics_import
+        row = self._row_label(parent, 'Flash auf', top=True)
+        self.flash_btn = self._toggle_button(row, 'D (links)' if app.flash_side == 'left' else 'F (rechts)', self._toggle_flash)
+        tk.Label(parent, text='Gilt für importierte und eigene Zauber: Flash wird\n         auf diese Taste gelegt.', bg=self.BG_PANEL, fg=self.DIM_FG,
+                 font=('Segoe UI', 7), justify=tk.LEFT, anchor='w').pack(fill=tk.X, padx=8, pady=(0, 2))
+        row = self._row_label(parent, 'Lolalytics-Runen ohne eigene Wahl')
+        self.import_btn = self._toggle_button(row, self._weak_label(imp['enabled']), self._toggle_import)
+        self.import_btn.config(bg=self._weak_bg(imp['enabled']))
+        tk.Label(parent, text='AN  =  hat der Champion keine eigenen Runen, werden beim\n         Lock-in Runen + Zauber von Lolalytics genommen.', bg=self.BG_PANEL,
+                 fg=self.DIM_FG, font=('Segoe UI', 7), justify=tk.LEFT, anchor='w').pack(fill=tk.X, padx=8, pady=(0, 2))
+        row = self._row_label(parent, 'Rang')
+        self._menu_button(row, TIER_LABELS.get(imp['tier'], imp['tier']), [(t, TIER_LABELS[t]) for t in TIERS], lambda v: self._set_import('tier', v))
+        row = self._row_label(parent, 'Zeitraum / Patch')
+        patches = [('7', '7 Tage'), ('14', '14 Tage'), ('30', '30 Tage')] + [(p, f'Patch {p}') for p in self._recent_patches()]
+        label = dict(patches).get(imp['patch'], f"Patch {imp['patch']}")
+        self._menu_button(row, label, patches, lambda v: self._set_import('patch', v))
+        row = self._row_label(parent, 'Build')
+        self._menu_button(row, BUILDS.get(imp['build'], imp['build']), list(BUILDS.items()), lambda v: self._set_import('build', v))
+        tk.Frame(parent, bg=self.BG_PANEL, height=4).pack()
+
+    def _recent_patches(self):
+        version = getattr(self.app.controller.runes, 'version', '') or ''
+        parts = version.split('.')
+        if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
+            return []
+        major, minor = int(parts[0]), int(parts[1])
+        return [f'{major}.{minor - i}' for i in range(0, 6) if minor - i >= 1]
+
+    def _toggle_flash(self):
+        self.app.flash_side = 'right' if self.app.flash_side == 'left' else 'left'
+        self.app.save_config()
+        self.flash_btn.config(text='D (links)' if self.app.flash_side == 'left' else 'F (rechts)')
+
+    def _toggle_import(self):
+        self.app.lolalytics_import = {**self.app.lolalytics_import, 'enabled': not self.app.lolalytics_import['enabled']}
+        self.app.save_config()
+        on = self.app.lolalytics_import['enabled']
+        self.import_btn.config(text=self._weak_label(on), bg=self._weak_bg(on))
+
+    def _set_import(self, key, value):
+        self.app.lolalytics_import = {**self.app.lolalytics_import, key: value}
+        self.app.save_config()
 
     def _build_opacity(self, parent, key, label, top=False):
         row = tk.Frame(parent, bg=self.BG_PANEL)

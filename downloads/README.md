@@ -1,4 +1,24 @@
-# LoL Autopicker 2.4 — Runen & Zauber, Deckkraft, Lolalytics-Tabs
+# Rückmeldung des Nutzers (Stand nach 2.4) — Grundlage für 2.5
+
+> runen picken funktioniert sehr gut
+> - beschwörer zauber funktioniert noch nicht so gut bzw garnicht, aber man muss auch bedenken wenn man jungler ist bzw zufällig bekommt passen die beschörer zauber unter umständen nicht, wenn das nicht passt soll flash und smite genommen werden bzw wär es auch cool wenn man einstellen kann ob wo man den flash hat auf welcher taste bzw links oder rechts und dazu dann auch einstellen kann wenn man jungler mit dem champ zufällig bekommt wie man dann die beschörer zauber hat, aber das mit dem zufällig jungler kommt sehr selten vor also muss diese einstellungsmöglichkeit nicht direkt ausgeklappt sein quasi, und wenn es neue runen gibt also nen update runen werden geändert passt sich der toilet helper da an? es sollte so sein
+>
+> Rollen Picklisten: Lass pro zugewiesener Rolle eigene Pick- und Ban-Champions festlegen, die automatisch greifen, vielleicht unter auto pick und bann also wenn man das öffnet das da ein dropdown menü hat wo man die rolle auswählen kann und wenn man jungle spielen will macht man sich da ne liste und wenn man dann zufällig doch toplane bekommt wird automatisch die toplane liste genutzt die man auch gemacht hat
+>
+> wenn man keine runen für den champ selbst gewählt hat soll man einstellen können ob automatisch die runen von lolalytics für den champ genommen werden und auch die einstellungsmöglichkeiten welche lolalytics rank man nimmt welchen patch bzw wie viel tage her wie im screenshot und ob man meistgespielt oder highest winrate will, und natürlich sollte es aber auch ne standard einstellung geben die ist bei rank all ranks letzten 30 tage und most common, die standard einstellung kann man abändern was standard ist quasi und dann soll es einen button geben auto import runes lolalytics für die rolle die ja dann logisch ist weil man die liste ja für eine bestimmte rolle macht und es soll auch auf die beschwörer zauber geguckt werden welche genommen werden und noch für die beschwörer zauber gibt es immer die preferenzen ob man flash auf d oder auf f hat also links oder rechts und die preferenz muss der spieler wo einstellen können damit wenn die beschwörerzauber importiert werden auch nicht das mit dem flash falschrum ist für manche weil lolalytics zeigt flash standardmäßig links also auf d an
+> Runen Von Lolalytics: Lass die beliebteste Runenseite direkt aus Lolalytics für den Champion übernehmen statt alles von Hand zu klicken
+
+## Umgesetzt in 2.5
+
+- **Beschwörerzauber zuverlässig:** Nach dem Lock-in wird `PATCH /lol-champ-select/v1/session/my-selection` gesendet und anschließend in der Session **geprüft**, ob der Client die Zauber wirklich zeigt; falls nicht, bis zu 4 Versuche (der Client ignoriert sehr frühe PATCHes). Jeder Versuch steht mit HTTP-Status und Client-Anzeige im Protokoll.
+- **Flash auf D oder F:** Einstellungen → „Flash auf“ `D (links)` / `F (rechts)`. Gilt für eigene und importierte Zauber (Lolalytics zeigt Flash standardmäßig links).
+- **Zufällig Jungle:** Ist die zugewiesene Rolle Jungle und die gespeicherten Zauber enthalten kein Smite, werden automatisch **Flash + Smite** gesetzt. Im Runen-Fenster gibt es eingeklappt „▸ Zauber, falls zufällig Jungle“, um stattdessen eigene Jungle-Zauber festzulegen.
+- **Neue Patches:** Die Runen-/Zauberdaten kommen von Data Dragon und werden täglich auf eine neue Version geprüft (Cache pro Version). Passt eine gespeicherte Runenseite nach einem Runen-Update nicht mehr zum aktuellen Baum, wird sie nicht gesetzt und du bekommst den Hinweis „Runen veraltet – bitte neu wählen“ (Zauber werden trotzdem gesetzt).
+- **Rollen-Picklisten:** Unter „Auto-Pick&Ban“ gibt es das Dropdown „Liste für: Alle Rollen / Top / Jungle / Mid / Bot / Support“. Jede Rolle hat eigene Pick- und Ban-Listen; die Auswahl wird gespeichert. In der Champion-Auswahl greift automatisch die Liste der **zugewiesenen Rolle** (Picks und Bans getrennt); hat die Rolle keine Einträge, gilt die Liste „Alle Rollen“. Bad-Matchups bleiben pro Champion.
+- **Lolalytics-Runen ohne eigene Wahl:** Einstellungen → „Lolalytics-Runen ohne eigene Wahl“ (Standard AN). Hat der gelockte Champion keine eigenen Runen, werden Runen, Statusrunen und Beschwörerzauber von der Lolalytics-Build-Seite für die zugewiesene Lane geholt. Einstellbar: **Rang** (All Ranks … Unranked wie auf Lolalytics), **Zeitraum/Patch** (7/14/30 Tage oder konkreter Patch), **Build** (Most Common / Highest Win). Standard: All Ranks, 30 Tage, Most Common.
+- **Import-Buttons:** „⤓ Lolalytics“ neben dem Rollen-Dropdown importiert Runen + Zauber für alle Champions der angezeigten Liste (Lane = gewählte Rolle, bei „Alle Rollen“ die Standard-Lane des Champions). Im Runen-Fenster importiert „⤓ Von Lolalytics“ nur diesen Champion; danach kannst du anpassen und speichern. Eigene Jungle-Zauber bleiben beim Import erhalten.
+
+# LoL Autopicker 2.5 — Rollen-Listen, Lolalytics-Import, Zauber-Fix (2.4: Runen & Zauber, Deckkraft, Lolalytics-Tabs)
 
 Windows-Python-Programm mit deiner ursprünglichen Oberfläche. Kein Expo, keine Handy-App, kein Konto.
 
@@ -37,7 +57,7 @@ Windows-Python-Programm mit deiner ursprünglichen Oberfläche. Kein Expo, keine
 
 1. Autopicker vollständig beenden.
 2. ZIP entpacken und **den Inhalt** des enthaltenen Programmordners in deinen **bisherigen Autopicker-Ordner** kopieren; Dateien ersetzen. `.venv` und `native_manifests` dort behalten. Den bisherigen Ordner nicht verschieben oder umbenennen.
-3. In Opera `opera://extensions` öffnen und bei der Autopicker-Erweiterung **Neu laden** anklicken (für 2.4 nötig, weil sich `background.js` geändert hat). Version: **2.4.0**. Kein erneutes ID-Kopieren nötig, solange Ordner und Browserprofil unverändert bleiben.
+3. In Opera `opera://extensions` öffnen und bei der Autopicker-Erweiterung **Neu laden** anklicken (für 2.4 nötig, weil sich `background.js` geändert hat). Version: **2.5.0**. Kein erneutes ID-Kopieren nötig, solange Ordner und Browserprofil unverändert bleiben.
 4. `Start.bat` starten. Einstellungen und gespeicherte URLs bleiben in `%LOCALAPPDATA%\LoLAutopicker` erhalten.
 
 Die Abhängigkeiten haben sich nicht geändert: bei funktionierender 2.0-Installation ist `Setup.bat` nicht erneut nötig. Wer einen anderen Installationsordner verwendet, muss Erweiterung, Native Host und gegebenenfalls Autostart auf den neuen Pfad einrichten.

@@ -3,6 +3,7 @@ import copy
 import json
 import logging
 import os
+import re
 from pathlib import Path
 import tempfile
 import threading
@@ -21,8 +22,16 @@ DEFAULTS = {
     "weak_pc_mode": False, "debug_mode": False, "preferred_browser": "",
     "lockfile_path": "", "live_api_port": 2999,
     "opacity_default": 0.75, "opacity_ingame": 0.5, "loadouts": {},
+    "flash_side": "left", "lolalytics_import": {"enabled": True, "tier": "all", "patch": "30", "build": "pick"},
+    "role_lists": {}, "list_role": "",
 }
 OPACITY_MIN, OPACITY_MAX = 0.2, 1.0
+ROLES = ("top", "jungle", "middle", "bottom", "support")
+ROLE_LABELS = {"": "Alle Rollen", "top": "Top", "jungle": "Jungle", "middle": "Mid", "bottom": "Bot", "support": "Support"}
+
+
+def clean_champ_list(value):
+    return list(dict.fromkeys(x for x in value if type(x) is int and x > 0))[:30] if isinstance(value, list) else []
 
 
 def clean_loadout(value):
@@ -39,6 +48,9 @@ def clean_loadout(value):
         if not isinstance(items, list) or len(items) != length or any(type(x) is not int or x <= 0 for x in items):
             return None
         result[key] = list(items)
+    jungle = value.get("jungle_spells")
+    if isinstance(jungle, list) and len(jungle) == 2 and all(type(x) is int and x > 0 for x in jungle):
+        result["jungle_spells"] = list(jungle)
     return result
 
 
@@ -92,6 +104,29 @@ def clean_config(value):
         number = value.get(key)
         if isinstance(number, (int, float)) and not isinstance(number, bool) and OPACITY_MIN <= number <= OPACITY_MAX:
             result[key] = round(float(number), 2)
+    if value.get("flash_side") in ("left", "right"):
+        result["flash_side"] = value["flash_side"]
+    imp = value.get("lolalytics_import")
+    if isinstance(imp, dict):
+        from .lolalytics import TIERS, BUILDS
+        if isinstance(imp.get("enabled"), bool):
+            result["lolalytics_import"]["enabled"] = imp["enabled"]
+        if imp.get("tier") in TIERS:
+            result["lolalytics_import"]["tier"] = imp["tier"]
+        if isinstance(imp.get("patch"), str) and re.fullmatch(r"\d{1,2}(\.\d{1,2})?", imp["patch"]):
+            result["lolalytics_import"]["patch"] = imp["patch"]
+        if imp.get("build") in BUILDS:
+            result["lolalytics_import"]["build"] = imp["build"]
+    if isinstance(value.get("role_lists"), dict):
+        for role in ROLES:
+            lists = value["role_lists"].get(role)
+            if isinstance(lists, dict):
+                cleaned = {"auto_pick_champs": clean_champ_list(lists.get("auto_pick_champs")),
+                           "auto_ban_champs": clean_champ_list(lists.get("auto_ban_champs"))}
+                if cleaned["auto_pick_champs"] or cleaned["auto_ban_champs"]:
+                    result["role_lists"][role] = cleaned
+    if value.get("list_role") in ROLES:
+        result["list_role"] = value["list_role"]
     if isinstance(value.get("loadouts"), dict):
         result["loadouts"] = {}
         for key, loadout in value["loadouts"].items():

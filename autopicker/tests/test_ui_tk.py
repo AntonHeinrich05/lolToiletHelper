@@ -320,3 +320,54 @@ def test_ban_borders_opacity_and_loadout_window(tmp_path, bundle_dir):
     finally:
         if app is not None and app.root.winfo_exists():
             app.quit()
+
+
+# 2.5: role dropdown switches the shown lists and stores them per role; Lolalytics import (mocked) fills loadouts
+def test_role_lists_dropdown_and_lolalytics_import(tmp_path, bundle_dir, monkeypatch):
+    import lolpicker.ui as ui_module
+    root = tk.Tk()
+    controller = Controller(directory=tmp_path / "data5", bundle=bundle_dir, start_workers=False)
+    runes, spells = _fake_rune_tree()
+    controller.runes.apply(runes, spells)
+    controller.runes.loaded.set()
+    app = None
+    try:
+        assert controller.settings.update(auto_pick_champs=[266], auto_ban_champs=[51], auto_pick_enabled=True, auto_pick_minimized=False)
+        app = App(root, controller)
+        _pump(root)
+        assert app.role_frame.winfo_ismapped() and 'Alle Rollen' in app.role_btn.cget('text')
+        app._select_role('jungle')
+        _pump(root)
+        assert app.auto_pick_champs == [] and app.ban_rows == [] and 'Jungle' in app.role_btn.cget('text')
+        app._add_champ('pick', 64)
+        app._add_champ('ban', 10)
+        snap = controller.settings.snapshot()
+        assert snap['role_lists'] == {'jungle': {'auto_pick_champs': [64], 'auto_ban_champs': [10]}}
+        assert snap['auto_pick_champs'] == [266] and snap['auto_ban_champs'] == [51] and snap['list_role'] == 'jungle'
+        app._select_role('')
+        _pump(root)
+        assert app.auto_pick_champs == [266] and [r.champ_id for r in app.ban_rows] == [51]
+        app._select_role('jungle')
+        assert [r.champ_id for r in app.pick_rows] == [64]
+
+        calls = []
+
+        def fake_fetch(name, lane, tier, patch, build):
+            calls.append((name, lane, tier, patch, build))
+            return {"perks": [8005, 9101, 9104, 8014, 8126, 8137], "shards": [5008, 5008, 5001], "spells": [4, 14], "lane": lane, "games": 9}
+        monkeypatch.setattr(ui_module, 'fetch_build', fake_fetch)
+        app.flash_side = 'right'
+        app.import_lolalytics(list(app.auto_pick_champs))
+        import time
+        for _ in range(50):
+            _pump(root)
+            time.sleep(0.02)
+            if '64' in app.loadouts:
+                break
+        assert calls == [('Lee Sin', 'jungle', 'all', '30', 'pick')]
+        saved = controller.settings.snapshot()['loadouts']['64']
+        assert saved['primary'] == 8000 and saved['sub'] == 8100 and saved['spells'] == [14, 4]
+        assert app.pick_rows[0].rune_btn.cget('fg') == '#c8aa6e'
+    finally:
+        if app is not None and app.root.winfo_exists():
+            app.quit()

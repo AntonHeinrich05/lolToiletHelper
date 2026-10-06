@@ -64,7 +64,11 @@ class MockLCU:
         if path == "/lol-champ-select/v1/session":
             return web.json_response(self.state["session"]) if self.state["session"] else web.Response(status=404)
         if path == "/lol-champ-select/v1/session/my-selection" and method == "PATCH":
-            self.state["my_selection"].update(json.loads(self.calls[-1][2] or "{}"))
+            body = json.loads(self.calls[-1][2] or "{}")
+            self.state["my_selection"].update(body)
+            for player in (self.state["session"] or {}).get("myTeam", []):
+                if player["cellId"] == self.state["session"]["localPlayerCellId"]:
+                    player["spell1Id"], player["spell2Id"] = body.get("spell1Id"), body.get("spell2Id")
             return web.Response(status=204)
         if path == "/lol-perks/v1/inventory":
             return web.json_response({"ownedPageCount": self.state["owned_pages"]})

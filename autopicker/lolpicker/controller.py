@@ -28,10 +28,10 @@ class Controller:
         self.inflight = set()
         self.last_live_url = None
         self.bridge = BrowserBridge(self.directory, self.on_browser, self.emit, self.context)
-        self.lcu = LCUWorker(self.settings, self.emit, self.catalog)
+        self.runes = RuneData(self.directory)
+        self.lcu = LCUWorker(self.settings, self.emit, self.catalog, self.runes)
         self.live = LiveWorker(self.settings, self.emit)
         self.foreground = ForegroundMonitor(self.settings, self.emit)
-        self.runes = RuneData(self.directory)
         threading.Thread(target=self.browser_worker, daemon=True, name="BrowserCommands").start()
         if start_workers:
             self.lcu.start()

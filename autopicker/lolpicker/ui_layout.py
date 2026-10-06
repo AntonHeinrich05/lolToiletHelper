@@ -1,5 +1,6 @@
 import tkinter as tk
 import queue
+from .storage import ROLE_LABELS
 from .ui_widgets import ROW_BG, FONT_ROW, FONT_ROW_SMALL, FONT_ENTRY, FONT_ENTRY_SMALL, PICK_BORDER, DRAG_BORDER, PICK_PLACEHOLDER, BAN_PLACEHOLDER, PLACEHOLDER_FG, ACTIVE_FG, CHAMPION_NAMES, NAME_TO_ID, NORM_NAMES, find_matches, ChampRow, BadMatchupsPanel
 
 class ClassicOverlay:
@@ -40,6 +41,9 @@ class ClassicOverlay:
         self.active_bm_panel = None
         self.loadouts = {}
         self.opacity_default, self.opacity_ingame = 0.75, 0.5
+        self.list_role, self.role_lists, self.flash_side = '', {}, 'left'
+        self.lolalytics_import = {'enabled': True, 'tier': 'all', 'patch': '30', 'build': 'pick'}
+        self.general_lists = {'auto_pick_champs': [], 'auto_ban_champs': []}
         self.load_config()
         self.root.attributes('-alpha', self.opacity_default)
         self.top_frame = tk.Frame(self.root, bg=ROW_BG, height=18)
@@ -88,6 +92,20 @@ class ClassicOverlay:
         self.auto_pick_min_btn.bind('<Enter>', lambda e: self.auto_pick_min_btn.config(fg='#f0e6d2'))
         self.auto_pick_min_btn.bind('<Leave>', lambda e: self.auto_pick_min_btn.config(fg='#c8aa6e'))
         self.auto_pick_content_frame = tk.Frame(self.root, bg=ROW_BG)
+        self.role_frame = tk.Frame(self.auto_pick_content_frame, bg=ROW_BG)
+        tk.Label(self.role_frame, text='Liste für', bg=ROW_BG, fg='#7a7259', font=FONT_ENTRY).pack(side=tk.LEFT, padx=(2, 4))
+        self.role_btn = tk.Menubutton(self.role_frame, text=f"{ROLE_LABELS.get(getattr(self, 'list_role', ''), 'Alle Rollen')}  ▾", bg='#1a2a3a', fg='#d4b87a',
+                                      activebackground='#23415e', activeforeground='#f0e6d2', font=FONT_ROW, relief='flat', bd=0, padx=6, pady=0, cursor='hand2')
+        self.role_menu = tk.Menu(self.role_btn, tearoff=0, bg='#0a1a2b', fg='#c8aa6e', activebackground='#2a3a4a', activeforeground='#f0e6d2', font=FONT_ENTRY, bd=0)
+        for role, label in ROLE_LABELS.items():
+            self.role_menu.add_command(label=label, command=lambda r=role: self._select_role(r))
+        self.role_btn.config(menu=self.role_menu)
+        self.role_btn.pack(side=tk.LEFT)
+        self.import_btn = tk.Label(self.role_frame, text='⤓ Lolalytics', bg=ROW_BG, fg='#5fa8d3', font=FONT_ENTRY, cursor='hand2')
+        self.import_btn.pack(side=tk.RIGHT, padx=(0, 2))
+        self.import_btn.bind('<Button-1>', lambda e: self.import_lolalytics(list(self.auto_pick_champs)) if self.auto_pick_champs else None)
+        self.import_btn.bind('<Enter>', lambda e: self.import_btn.config(fg='#a3d0ef'))
+        self.import_btn.bind('<Leave>', lambda e: self.import_btn.config(fg='#5fa8d3'))
         self.pick_search_frame = tk.Frame(self.auto_pick_content_frame, bg=ROW_BG)
         self.pick_search_entry = self._make_search_entry(self.pick_search_frame, 'pick', PICK_PLACEHOLDER)
         self.pick_suggestions_listbox = self._make_suggestions_listbox(self.pick_search_frame, 'pick')
@@ -214,6 +232,8 @@ class ClassicOverlay:
             self.champ_frame.pack(anchor=tk.W, padx=4, pady=(4, 6))
 
     def _arrange_content(self):
+        self.role_frame.pack_forget()
+        self.role_frame.pack(anchor=tk.W, fill=tk.X, padx=4, pady=(3, 0))
         self.pick_search_frame.pack_forget()
         self.pick_champ_list_frame.pack_forget()
         self.ban_search_frame.pack_forget()

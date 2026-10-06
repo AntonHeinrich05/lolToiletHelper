@@ -102,6 +102,7 @@ class LoadoutWindow:
         self.status.pack(fill=tk.X, padx=10, pady=(0, 6))
         saved = app.loadouts.get(str(champ_id))
         self.state = dict(saved) if saved else None
+        self.show_jungle = bool(saved and saved.get('jungle_spells'))
         self.win.bind('<Escape>', lambda e: self.close())
         self._wait_for_data()
 
@@ -174,6 +175,21 @@ class LoadoutWindow:
         items = [(sid, self.data.spells[sid]['icon'], self.data.spells[sid]['name'], '') for sid in SPELL_IDS if sid in self.data.spells]
         self._row(spells, items[:6], self.set_spell, set(self.state['spells']))
         self._row(spells, items[6:], self.set_spell, set(self.state['spells']))
+        side = 'D (links)' if self.app.flash_side == 'left' else 'F (rechts)'
+        tk.Label(spells, text=f'Flash liegt auf {side} (Einstellungen). Jungle ohne Smite → Flash + Smite.', bg=BG_PANEL, fg=DIM_FG,
+                 font=('Segoe UI', 6)).pack(anchor='w', padx=4)
+        jungle = tk.Frame(self.body, bg=ROW_BG)
+        jungle.pack(fill=tk.X, padx=8, pady=(4, 0))
+        toggle = tk.Label(jungle, text=('▾' if self.show_jungle else '▸') + '  Zauber, falls zufällig Jungle', bg=ROW_BG, fg=DIM_FG,
+                          font=('Segoe UI', 7), cursor='hand2')
+        toggle.pack(anchor='w')
+        toggle.bind('<Button-1>', lambda e: self.toggle_jungle())
+        if self.show_jungle:
+            panel = self._panel(jungle, 'JUNGLE-ZAUBER (optional, sonst Flash + Smite)')
+            panel.master.pack(fill=tk.X, pady=(2, 0))
+            selected = set(self.state.get('jungle_spells') or [])
+            self._row(panel, items[:6], self.set_jungle_spell, selected)
+            self._row(panel, items[6:], self.set_jungle_spell, selected)
         foot = tk.Frame(self.body, bg=ROW_BG)
         foot.pack(fill=tk.X, padx=10, pady=(8, 2))
         save = tk.Label(foot, text='SPEICHERN', bg='#1a2a3a', fg=SELECTED, font=('Consolas', 8, 'bold'), padx=12, pady=3, cursor='hand2')
@@ -181,6 +197,9 @@ class LoadoutWindow:
         save.bind('<Button-1>', lambda e: self.save())
         save.bind('<Enter>', lambda e: save.config(bg='#23415e'))
         save.bind('<Leave>', lambda e: save.config(bg='#1a2a3a'))
+        imp = tk.Label(foot, text='⤓ Von Lolalytics', bg=ROW_BG, fg='#5fa8d3', font=('Segoe UI', 7, 'underline'), cursor='hand2')
+        imp.pack(side=tk.LEFT, padx=(10, 0))
+        imp.bind('<Button-1>', lambda e: self.import_lolalytics())
         if str(self.champ_id) in self.app.loadouts:
             remove = tk.Label(foot, text='Entfernen', bg=ROW_BG, fg='#e74c3c', font=('Segoe UI', 7, 'underline'), cursor='hand2')
             remove.pack(side=tk.RIGHT)
@@ -254,6 +273,32 @@ class LoadoutWindow:
         if spell_id not in spells:
             self.state['spells'] = [spells[1], spell_id]
         self.build()
+
+    def set_jungle_spell(self, spell_id):
+        spells = list(self.state.get('jungle_spells') or [4, 11])
+        if spell_id not in spells:
+            self.state['jungle_spells'] = [spells[1], spell_id]
+        self.build()
+
+    def toggle_jungle(self):
+        self.show_jungle = not self.show_jungle
+        if not self.show_jungle:
+            self.state.pop('jungle_spells', None)
+        self.build()
+
+    def import_lolalytics(self):
+        self.status.config(text='Lolalytics wird geladen …')
+
+        def done(results):
+            if not self.win.winfo_exists():
+                return
+            loadout = results.get(str(self.champ_id))
+            if loadout:
+                self.state = {**loadout, **({'jungle_spells': self.state['jungle_spells']} if self.state.get('jungle_spells') else {})}
+                self.build()
+            else:
+                self.status.config(text='Lolalytics-Import fehlgeschlagen (Internet / Champion-Seite?)')
+        self.app.import_lolalytics([self.champ_id], done=done)
 
     def save(self):
         self.app.loadouts[str(self.champ_id)] = dict(self.state)

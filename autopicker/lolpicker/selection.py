@@ -42,10 +42,18 @@ def available(session, champion, action_type="pick"):
     return True
 
 
+def effective_lists(options, position):
+    """Role list for the assigned position when it has entries; otherwise the general lists."""
+    role = LANES.get(str(position or "").lower(), "")
+    lists = (options.get("role_lists") or {}).get(role) or {}
+    return {key: lists.get(key) or options.get(key, []) for key in ("auto_pick_champs", "auto_ban_champs")}
+
+
 def choose(session, options, action_type):
     key = "auto_pick_champs" if action_type == "pick" else "auto_ban_champs"
     allowed = session.get("pickableChampionIds" if action_type == "pick" else "bannableChampionIds")
-    candidates = [c for c in options.get(key, []) if available(session, c, action_type) and (allowed is None or c in allowed)]
+    champions = effective_lists(options, own_player(session).get("assignedPosition"))[key]
+    candidates = [c for c in champions if available(session, c, action_type) and (allowed is None or c in allowed)]
     if action_type == "pick":
         enemies = {p["champion_id"] for p in roster(session)}
         safe = [c for c in candidates if not enemies.intersection(options.get("bad_matchups", {}).get(str(c), []))]

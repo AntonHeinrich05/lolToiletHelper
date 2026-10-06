@@ -7,6 +7,9 @@ from .loadout_ui import LoadoutWindow
 from .settings_ui import SettingsWindow
 from .ui_layout import ClassicOverlay
 from .ui_widgets import BAN_BORDER, CHAMPION_NAMES, PICK_BORDER, ROW_BG
+from .storage import ROLE_LABELS
+from .lolalytics import fetch_build, to_loadout
+import threading
 
 INGAME_PHASES = ('InProgress', 'GameStart', 'Reconnect')
 NEUTRAL_BORDER = '#818181'
@@ -17,7 +20,8 @@ class App(ClassicOverlay):
     SETTINGS = ('auto_ready_enabled', 'auto_pick_enabled', 'auto_pick_champs',
                 'auto_ban_champs', 'auto_pick_minimized', 'bad_matchups',
                 'hotkeys', 'weak_pc_mode', 'debug_mode', 'live_tracking',
-                'opacity_default', 'opacity_ingame', 'loadouts')
+                'opacity_default', 'opacity_ingame', 'loadouts',
+                'flash_side', 'lolalytics_import', 'role_lists', 'list_role')
 
     def __init__(self, root, controller):
         self.controller = controller
@@ -53,9 +57,19 @@ class App(ClassicOverlay):
         config = self.controller.settings.snapshot()
         for key in self.SETTINGS:
             setattr(self, key, config[key])
+        # The overlay lists show the selected role list; the general lists stay stored separately.
+        self.general_lists = {'auto_pick_champs': list(config['auto_pick_champs']), 'auto_ban_champs': list(config['auto_ban_champs'])}
+        if self.list_role:
+            lists = self.role_lists.get(self.list_role, {})
+            self.auto_pick_champs = list(lists.get('auto_pick_champs', []))
+            self.auto_ban_champs = list(lists.get('auto_ban_champs', []))
 
     def save_config(self):
         changes = {key: getattr(self, key) for key in self.SETTINGS}
+        if self.list_role:
+            role_lists = {k: dict(v) for k, v in self.role_lists.items()}
+            role_lists[self.list_role] = {'auto_pick_champs': list(self.auto_pick_champs), 'auto_ban_champs': list(self.auto_ban_champs)}
+            changes.update(role_lists=role_lists, **self.general_lists)
         if not self.controller.settings.update(**changes):
             error = self.controller.settings.last_error
             self.load_config()
@@ -111,6 +125,58 @@ class App(ClassicOverlay):
         logging.getLogger(__name__).info('Hotkey empfangen: %s', action)
         if action in actions:
             actions[action]()
+
+    def _select_role(self, role):
+        if role == self.list_role:
+            return
+        if not self.save_config():
+            return
+        if not self.controller.settings.update(list_role=role):
+            return
+        self.load_config()
+        self._close_bm_panel()
+        self._refresh_row_data('pick')
+        self._refresh_row_data('ban')
+        self._arrange_content()
+        self.role_btn.config(text=f'{ROLE_LABELS.get(role, role)}  ▾')
+        self._resize_window()
+
+    def import_lolalytics(self, champ_ids, role=None, done=None):
+        """Background import of Lolalytics runes/spells for the given champions (lane = role list or default)."""
+        role = self.list_role if role is None else role
+        config = self.lolalytics_import
+        names = {cid: CHAMPION_NAMES.get(cid, str(cid)) for cid in champ_ids}
+
+        def work():
+            results, failed = {}, []
+            for cid, name in names.items():
+                try:
+                    build = fetch_build(name, role, config['tier'], config['patch'], config['build'])
+                    results[str(cid)] = to_loadout(build, self.controller.runes, self.flash_side)
+                except (OSError, ValueError, KeyError) as error:
+                    logging.getLogger(__name__).info('Lolalytics-Import %s fehlgeschlagen: %s', name, error)
+                    failed.append(name)
+            # Tk is touched only from the main thread: deliver through the UI event queue.
+            self.controller.emit({'type': 'import_done', 'results': results, 'failed': failed, 'done': done})
+
+        self.notice(f'Lolalytics-Import läuft ({len(names)}) …', 2500)
+        threading.Thread(target=work, daemon=True, name='LolalyticsImport').start()
+
+    def _import_finished(self, results, failed, done):
+        if self._closed:
+            return
+        for key, loadout in results.items():
+            existing = self.loadouts.get(key, {})
+            if existing.get('jungle_spells'):
+                loadout['jungle_spells'] = existing['jungle_spells']
+            self.loadouts[key] = loadout
+        if results:
+            self.save_config()
+            self._refresh_row_data('pick')
+        text = f'Lolalytics-Runen importiert: {len(results)}' + (f', fehlgeschlagen: {", ".join(failed)}' if failed else '')
+        self.notice(text)
+        if done:
+            done(results)
 
     def _open_loadout(self, row):
         if self._loadout_window and self._loadout_window.win.winfo_exists():
@@ -246,6 +312,8 @@ class App(ClassicOverlay):
                     self._settings_window.refresh_tracking()
             elif kind == 'notice':
                 self.notice(message['text'])
+            elif kind == 'import_done':
+                self._import_finished(message['results'], message['failed'], message['done'])
             elif kind == 'browsers_closed' and message.get('count'):
                 self.notice(f"Lolalytics-Tabs geschlossen: {message['count']}", 1200)
         if resize:
