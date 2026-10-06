@@ -55,9 +55,32 @@ def test_role_lists_storage_and_selection():
     assert cfg["lolalytics_import"] == {"enabled": False, "tier": "gold_plus", "patch": "16.18", "build": "win"}
     assert cfg["role_lists"] == {"jungle": {"auto_pick_champs": [64], "auto_ban_champs": []}}
     assert effective_lists(cfg, "jungle") == {"auto_pick_champs": [64], "auto_ban_champs": [51]}
-    assert effective_lists(cfg, "top") == {"auto_pick_champs": [266], "auto_ban_champs": [51]}
+    # 2.6: assigned top without a top list -> the list selected in the overlay (jungle) stays in use, not 'Alle Rollen'
+    assert effective_lists(cfg, "top") == {"auto_pick_champs": [64], "auto_ban_champs": [51]}
+    assert effective_lists(cfg, "") == {"auto_pick_champs": [64], "auto_ban_champs": [51]}
+    assert effective_lists({**cfg, "list_role": ""}, "top") == {"auto_pick_champs": [266], "auto_ban_champs": [51]}
+    cfg_top = clean_config({**cfg, "role_lists": {**cfg["role_lists"], "top": {"auto_pick_champs": [98], "auto_ban_champs": []}}})
+    assert effective_lists(cfg_top, "top") == {"auto_pick_champs": [98], "auto_ban_champs": [51]}  # own top list wins
     session = {"localPlayerCellId": 1, "myTeam": [{"cellId": 1, "assignedPosition": "jungle"}], "theirTeam": [], "actions": [], "bans": {}}
     assert choose(session, cfg, "pick") == 64
     session["myTeam"][0]["assignedPosition"] = "top"
-    assert choose(session, cfg, "pick") == 266
-    assert clean_config({"lolalytics_import": {"patch": "abc", "tier": "nope"}})["lolalytics_import"] == {"enabled": True, "tier": "all", "patch": "30", "build": "pick"}
+    assert choose(session, cfg, "pick") == 64
+    assert choose(session, cfg_top, "pick") == 98
+    assert clean_config({"lolalytics_import": {"patch": "abc", "tier": "nope"}})["lolalytics_import"] == {"enabled": False, "tier": "all", "patch": "30", "build": "pick"}
+    # migration: settings written by 2.5 (schema 2) had the import ON by default -> now OFF; explicit newer files keep their value
+    assert clean_config({"schema": 2, "lolalytics_import": {"enabled": True}})["lolalytics_import"]["enabled"] is False
+    assert clean_config({"schema": 3, "lolalytics_import": {"enabled": True}})["lolalytics_import"]["enabled"] is True
+    assert clean_config({"close_scope": "browser"})["close_scope"] == "browser" and clean_config({"close_scope": "x"})["close_scope"] == "lolalytics"
+
+
+def test_champion_specific_import_settings():
+    from lolpicker.lolalytics import import_settings, patch_options
+    base = {"primary": 8000, "sub": 8100, "perks": [1, 2, 3, 4, 5, 6], "shards": [1, 2, 3], "spells": [4, 14]}
+    cfg = clean_config({"loadouts": {"266": {**base, "lolalytics": {"build": "win", "tier": "nope", "patch": "7", "enabled": True}}}})
+    assert cfg["loadouts"]["266"]["lolalytics"] == {"build": "win", "patch": "7"}
+    assert "lolalytics" not in clean_config({"loadouts": {"266": {**base, "lolalytics": {}}}})["loadouts"]["266"]
+    glob = {"enabled": False, "tier": "gold_plus", "patch": "30", "build": "pick"}
+    assert import_settings(glob, cfg["loadouts"]["266"]) == {"enabled": False, "tier": "gold_plus", "patch": "7", "build": "win"}
+    assert import_settings(glob, None) == glob
+    assert patch_options("16.19.1")[:4] == [("7", "7 Tage"), ("14", "14 Tage"), ("30", "30 Tage"), ("16.19", "Patch 16.19")]
+    assert patch_options("") == [("7", "7 Tage"), ("14", "14 Tage"), ("30", "30 Tage")]

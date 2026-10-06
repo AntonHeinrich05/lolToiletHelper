@@ -41,8 +41,8 @@ class ClassicOverlay:
         self.active_bm_panel = None
         self.loadouts = {}
         self.opacity_default, self.opacity_ingame = 0.75, 0.5
-        self.list_role, self.role_lists, self.flash_side = '', {}, 'left'
-        self.lolalytics_import = {'enabled': True, 'tier': 'all', 'patch': '30', 'build': 'pick'}
+        self.list_role, self.role_lists, self.flash_side, self.close_scope = '', {}, 'left', 'lolalytics'
+        self.lolalytics_import = {'enabled': False, 'tier': 'all', 'patch': '30', 'build': 'pick'}
         self.general_lists = {'auto_pick_champs': [], 'auto_ban_champs': []}
         self.load_config()
         self.root.attributes('-alpha', self.opacity_default)

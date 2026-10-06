@@ -311,9 +311,31 @@ def test_ban_borders_opacity_and_loadout_window(tmp_path, bundle_dir):
         tile._enter(None)
         assert window.tooltip is not None and 'Schlüssel 9923' in window.tooltip.winfo_children()[0].cget('text')
         tile._leave(None)
+        # 2.6: champion-specific Lolalytics settings (collapsed next to the import link); only deviations are stored
+        assert not window.show_import_settings
+        window.toggle_import_settings()
+        assert window.show_import_settings and window.tiles
+        window.set_import_setting('build', 'win')
+        window.set_import_setting('tier', 'all')  # equals the global default -> not stored
+        assert window.state['lolalytics'] == {'build': 'win'}
         window.save()
         _pump(root)
         saved = controller.settings.snapshot()['loadouts']['266']
+        assert saved['lolalytics'] == {'build': 'win'}
+        app._open_loadout(row)
+        window = app._loadout_window
+        for _ in range(50):
+            _pump(root)
+            if window.tiles:
+                break
+            time.sleep(0.02)
+        assert window.show_import_settings  # stays open when the champion has own values
+        window.set_import_setting(None, None)
+        assert 'lolalytics' not in window.state
+        window.save()
+        _pump(root)
+        saved = controller.settings.snapshot()['loadouts']['266']
+        assert 'lolalytics' not in saved
         assert saved['primary'] == 8100 and saved['perks'][0] == 9923 and saved['spells'] == [12, 14] and saved['shards'][2] == 5011
         assert row.rune_btn.cget('fg') == '#c8aa6e'
         assert app._loadout_window is None
@@ -369,17 +391,22 @@ def test_role_lists_dropdown_and_lolalytics_import(tmp_path, bundle_dir, monkeyp
         assert saved['primary'] == 8000 and saved['sub'] == 8100 and saved['spells'] == [14, 4]
         assert app.pick_rows[0].rune_btn.cget('fg') == '#c8aa6e'
 
-        # 2.5.1: in champion select the overlay follows the assigned role (list that is really used) and restores afterwards
+        # 2.6: the selected list (jungle) stays in use; Alt+Shift+1 opens its first champion, not the 'Alle Rollen' one
+        assert controller.current_champion() == 'Lee Sin'
         controller.emit({'type': 'phase', 'phase': 'ChampSelect', 'queue_id': 420})
-        controller.emit({'type': 'pick_status', 'status': {266: 'ok'}, 'ban_status': {51: 'ok'}, 'role': 'top'})
+        controller.emit({'type': 'pick_status', 'status': {64: 'ok'}, 'ban_status': {10: 'ok'}, 'role': 'top'})
         app.process_queue()
         _pump(root)
-        assert 'Alle Rollen' in app.role_btn.cget('text') and [r.champ_id for r in app.pick_rows] == [266]  # no top list -> general list
+        assert 'Jungle' in app.role_btn.cget('text') and [r.champ_id for r in app.pick_rows] == [64]  # no top list -> selected list
         assert app.pick_rows[0].border_color == '#818181'
-        controller.emit({'type': 'pick_status', 'status': {64: 'hovered'}, 'ban_status': {10: 'ok'}, 'role': 'jungle'})
+        # a role with its own list wins while assigned, and the player's choice comes back afterwards
+        app._select_role('top')
+        app._add_champ('pick', 98)
+        app._select_role('jungle')
+        controller.emit({'type': 'pick_status', 'status': {98: 'hovered'}, 'ban_status': {}, 'role': 'top'})
         app.process_queue()
         _pump(root)
-        assert 'Jungle' in app.role_btn.cget('text') and app.pick_rows[0].border_color == '#3a8fd4'
+        assert 'Top' in app.role_btn.cget('text') and app.pick_rows[0].champ_id == 98 and app.pick_rows[0].border_color == '#3a8fd4'
         controller.emit({'type': 'phase', 'phase': 'Lobby', 'queue_id': 420})
         app.process_queue()
         _pump(root)

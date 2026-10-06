@@ -3,6 +3,7 @@ import logging
 import threading
 import tkinter as tk
 
+from .lolalytics import BUILDS, TIERS, TIER_LABELS, import_settings, patch_options
 from .runes import STAT_SHARDS, SPELL_IDS
 from .ui_widgets import CHAMPION_NAMES, ROW_BG
 
@@ -103,6 +104,7 @@ class LoadoutWindow:
         saved = app.loadouts.get(str(champ_id))
         self.state = dict(saved) if saved else None
         self.show_jungle = bool(saved and saved.get('jungle_spells'))
+        self.show_import_settings = bool(saved and saved.get('lolalytics'))
         self.win.bind('<Escape>', lambda e: self.close())
         self._wait_for_data()
 
@@ -200,13 +202,65 @@ class LoadoutWindow:
         imp = tk.Label(foot, text='⤓ Von Lolalytics', bg=ROW_BG, fg='#5fa8d3', font=('Segoe UI', 7, 'underline'), cursor='hand2')
         imp.pack(side=tk.LEFT, padx=(10, 0))
         imp.bind('<Button-1>', lambda e: self.import_lolalytics())
+        own = self.state.get('lolalytics') or {}
+        toggle = tk.Label(foot, text=('▾' if self.show_import_settings else '▸') + (' Einstellungen •' if own else ' Einstellungen'),
+                          bg=ROW_BG, fg=ACCENT if own else DIM_FG, font=('Segoe UI', 7), cursor='hand2')
+        toggle.pack(side=tk.LEFT, padx=(8, 0))
+        toggle.bind('<Button-1>', lambda e: self.toggle_import_settings())
         if str(self.champ_id) in self.app.loadouts:
             remove = tk.Label(foot, text='Entfernen', bg=ROW_BG, fg='#e74c3c', font=('Segoe UI', 7, 'underline'), cursor='hand2')
             remove.pack(side=tk.RIGHT)
             remove.bind('<Button-1>', lambda e: self.remove())
+        if self.show_import_settings:
+            self._build_import_settings()
         self.status.config(text='Gewählt = hell mit goldenem Rand. Wird beim Lock-in automatisch gesetzt.')
         self.win.update_idletasks()
         self.win.geometry(f'{self.win.winfo_reqwidth()}x{self.win.winfo_reqheight()}')
+
+    def _build_import_settings(self):
+        """Champion-specific Lolalytics rank/patch/build (collapsed): try e.g. 'Highest Win' for just this champion."""
+        panel = self._panel(self.body, f'LOLALYTICS FÜR {CHAMPION_NAMES.get(self.champ_id, self.champ_id).upper()} (sonst Einstellungen)')
+        panel.master.pack(fill=tk.X, padx=8, pady=(2, 0))
+        panel.pack_configure(fill=tk.X)
+        cfg = import_settings(self.app.lolalytics_import, self.state)
+        own = self.state.get('lolalytics') or {}
+        patches = patch_options(getattr(self.data, 'version', ''))
+        rows = (('Rang', 'tier', [(t, TIER_LABELS[t]) for t in TIERS], TIER_LABELS.get(cfg['tier'], cfg['tier'])),
+                ('Zeitraum / Patch', 'patch', patches, dict(patches).get(cfg['patch'], f"Patch {cfg['patch']}")),
+                ('Build', 'build', list(BUILDS.items()), BUILDS.get(cfg['build'], cfg['build'])))
+        for label, key, options, current in rows:
+            row = tk.Frame(panel, bg=BG_PANEL)
+            row.pack(fill=tk.X, padx=4, pady=1)
+            tk.Label(row, text=label, bg=BG_PANEL, fg=LABEL_FG, font=('Segoe UI', 7), anchor='w').pack(side=tk.LEFT)
+            btn = tk.Menubutton(row, text=f'{current} ▾', bg='#1a2a3a' if key in own else '#141c28', fg=SELECTED, activebackground='#23415e',
+                                activeforeground=SELECTED, font=('Consolas', 7, 'bold'), relief='flat', bd=0, padx=6, pady=1, cursor='hand2')
+            menu = tk.Menu(btn, tearoff=0, bg='#0a1a2b', fg=ACCENT, activebackground='#2a3a4a', activeforeground=SELECTED, font=('Segoe UI', 7), bd=0)
+            for value, text in options:
+                menu.add_command(label=text, command=lambda v=value, k=key: self.set_import_setting(k, v))
+            btn.config(menu=menu)
+            btn.pack(side=tk.RIGHT)
+        foot = tk.Frame(panel, bg=BG_PANEL)
+        foot.pack(fill=tk.X, padx=4, pady=(2, 0))
+        hint = 'Eigene Werte (gold) gelten nur für diesen Champion.' if own else 'Noch keine eigenen Werte – es gelten die Einstellungen.'
+        tk.Label(foot, text=hint, bg=BG_PANEL, fg=DIM_FG, font=('Segoe UI', 6)).pack(side=tk.LEFT)
+        if own:
+            reset = tk.Label(foot, text='Standard', bg=BG_PANEL, fg='#5fa8d3', font=('Segoe UI', 6, 'underline'), cursor='hand2')
+            reset.pack(side=tk.RIGHT)
+            reset.bind('<Button-1>', lambda e: self.set_import_setting(None, None))
+
+    def set_import_setting(self, key, value):
+        if key is None:
+            self.state.pop('lolalytics', None)
+        else:
+            own = {**(self.state.get('lolalytics') or {}), key: value}
+            self.state['lolalytics'] = {k: v for k, v in own.items() if self.app.lolalytics_import.get(k) != v} or None
+            if not self.state['lolalytics']:
+                self.state.pop('lolalytics')
+        self.build()
+
+    def toggle_import_settings(self):
+        self.show_import_settings = not self.show_import_settings
+        self.build()
 
     def _panel(self, parent, caption):
         frame = tk.Frame(parent, bg=BG_PANEL, bd=1, relief='solid', highlightthickness=0)
@@ -288,17 +342,21 @@ class LoadoutWindow:
 
     def import_lolalytics(self):
         self.status.config(text='Lolalytics wird geladen …')
+        own = self.state.get('lolalytics')
 
         def done(results):
             if not self.win.winfo_exists():
                 return
             loadout = results.get(str(self.champ_id))
             if loadout:
-                self.state = {**loadout, **({'jungle_spells': self.state['jungle_spells']} if self.state.get('jungle_spells') else {})}
+                keep = {k: self.state[k] for k in ('jungle_spells',) if self.state.get(k)}
+                if own:
+                    keep['lolalytics'] = own
+                self.state = {**loadout, **keep}
                 self.build()
             else:
                 self.status.config(text='Lolalytics-Import fehlgeschlagen (Internet / Champion-Seite?)')
-        self.app.import_lolalytics([self.champ_id], done=done)
+        self.app.import_lolalytics([self.champ_id], done=done, config=import_settings(self.app.lolalytics_import, self.state))
 
     def save(self):
         self.app.loadouts[str(self.champ_id)] = dict(self.state)

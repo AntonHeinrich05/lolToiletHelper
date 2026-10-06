@@ -1,3 +1,9 @@
+# Testergebnis — Version 2.6.0
+
+**58 Python-Tests und 8 Browserlogik-Tests bestanden.**
+
+Neu in 2.6 geprüft: `effective_lists` nutzt die im Overlay gewählte Liste, Rollenliste nur bei zugewiesener Rolle mit eigener Liste, „Alle Rollen“ als letzte Reserve; `current_champion()` (Alt+Shift+1) folgt derselben Regel; Tk: Dropdown bleibt auf der gewählten Liste, springt nur bei eigener Rollenliste und kehrt zurück; champion-spezifische Lolalytics-Einstellungen (nur Abweichungen gespeichert, Validierung, Standard-Reset, Import mit diesen Werten); Schließ-Umfang „Nur Lolalytics-Tabs“ (Erweiterung → Win32-Titel-Fallback) und „Ganze Browser“ (Win32 → Erweiterung `close_windows`), Rückmeldung bei 0 Treffern; Erweiterung `close_windows` speichert URLs und schließt alle Fenster; Migration schema 2 → 3 setzt den Lolalytics-Auto-Import auf AUS.
+
 # Testergebnis — Version 2.5.1
 
 **56 Python-Tests und 7 Browserlogik-Tests bestanden.**

@@ -81,6 +81,13 @@ Download-Paket `/app/downloads/LoL-Autopicker-2.0-Quellcode.zip`; `/app/tools/pa
 - `ui._follow_assigned_role`: Overlay-Dropdown folgt in ChampSelect der zugewiesenen Rolle, Rückkehr zur manuellen Wahl in Lobby/None.
 - README oben: Nutzer-Feedback (unverändert) + Abschnitt „Prüfung und Ergänzungen in 2.5.1“. 56 Python + 7 JS + 7 Backend-Tests grün; ZIP `LoL-Autopicker-2.5.1.zip`.
 
+## Implementiert — 2026-10-06 (Session 2.6.0, Rückmeldung 2)
+- `selection.effective_lists`: gewählte Liste (`list_role`) ist Standard, Rollenliste nur bei zugewiesener Rolle mit Einträgen, „Alle Rollen“ letzte Reserve; `controller.current_champion()` + `lcu.prehover` folgen dem (Alt+Shift+1 öffnet den ersten Champ der gewählten Liste).
+- `ui._follow_assigned_role` springt nur noch bei eigener Rollenliste um; Rückkehr zur manuellen Wahl.
+- Champion-spezifische Lolalytics-Einstellungen: `loadout.lolalytics` (nur Abweichungen), `lolalytics.import_settings/patch_options`, eingeklappte Sektion „▸ Einstellungen“ im Runen-Fenster, Import (Fenster, Liste, LCU-Fallback) nutzt sie.
+- `close_scope` („lolalytics“/„browser“) in Einstellungen; `controller.close_browsers` mit Win32 `close_browser_windows` (WM_CLOSE) + Erweiterung `close_windows`; immer Rückmeldung im Overlay.
+- Default `lolalytics_import.enabled=False`, Migration schema 2→3. Erweiterung 2.6.0 (Neu laden). 58 Python + 8 JS + 7 Backend-Tests grün; ZIP `LoL-Autopicker-2.6.0.zip`.
+
 ## Backlog / nächste Schritte
 - Windows-Abnahme durch Nutzer: Spielfenster-Erkennung, Browser-Fokus im Spiel, Hotkeys bei fokussiertem Spiel, echte LCU-Runen-Endpunkte.
 - Optional: Runenseiten-Import aus Lolalytics, Rollen-Picklisten, Dodge-Warnung.

@@ -13,8 +13,8 @@ out = Path(sys.argv[1])
 root = tk.Tk()
 controller = Controller(directory=Path("/tmp/lolpicker-shot"), bundle=Path(__file__).resolve().parents[1] / "autopicker", start_workers=False)
 controller.runes.start()
-controller.settings.update(auto_pick_champs=[876, 266], auto_ban_champs=[51], auto_pick_enabled=True, auto_pick_minimized=False,
-                           loadouts={"266": {"primary": 8000, "sub": 8100, "perks": [8010, 9111, 9104, 8014, 8139, 8135], "shards": [5008, 5008, 5001], "spells": [4, 12], "jungle_spells": [6, 11]}})
+controller.settings.update(auto_pick_champs=[876, 266], auto_ban_champs=[51], list_role="jungle", role_lists={"jungle": {"auto_pick_champs": [234, 266], "auto_ban_champs": [64]}}, auto_pick_enabled=True, auto_pick_minimized=False,
+                           loadouts={"266": {"primary": 8000, "sub": 8100, "perks": [8010, 9111, 9104, 8014, 8139, 8135], "shards": [5008, 5008, 5001], "spells": [4, 12], "jungle_spells": [6, 11], "lolalytics": {"build": "win"}}})
 app = App(root, controller)
 app.root.geometry("+20+20")
 controller.emit({"type": "status", "connected": True})

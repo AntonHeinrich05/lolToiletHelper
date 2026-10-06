@@ -43,9 +43,13 @@ def available(session, champion, action_type="pick"):
 
 
 def effective_lists(options, position):
-    """Role list for the assigned position when it has entries; otherwise the general lists."""
+    """Lists of the assigned role when it has its own entries; otherwise the list the player selected in the overlay
+    (`list_role`); the general lists ('Alle Rollen') are the last resort per key."""
     role = LANES.get(str(position or "").lower(), "")
-    lists = (options.get("role_lists") or {}).get(role) or {}
+    role_lists = options.get("role_lists") or {}
+    lists = role_lists.get(role) or {}
+    if not (lists.get("auto_pick_champs") or lists.get("auto_ban_champs")):
+        lists = role_lists.get(options.get("list_role") or "") or {}
     return {key: lists.get(key) or options.get(key, []) for key in ("auto_pick_champs", "auto_ban_champs")}
 
 

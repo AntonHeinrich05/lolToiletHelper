@@ -4,10 +4,11 @@ from pathlib import Path
 import queue
 import threading
 from .bridge import BrowserBridge
-from .browser_windows import ForegroundMonitor, focus_browser_window
+from .browser_windows import ForegroundMonitor, close_browser_windows, focus_browser_window
 from .lcu import LCUWorker
 from .live import LiveWorker
 from .runes import RuneData
+from .selection import effective_lists
 from .storage import Settings, data_dir, read_json
 from .urls import UrlStore, build_url, slug, NO_LANE
 
@@ -52,7 +53,8 @@ class Controller:
     def current_champion(self):
         if self.champion:
             return self.champion
-        picks = self.settings.snapshot()["auto_pick_champs"]
+        # Lobby/queue: first champion of the list that is really in use (assigned role, else the selected list).
+        picks = effective_lists(self.settings.snapshot(), self.role)["auto_pick_champs"]
         return self.catalog.get(picks[0], "") if picks else ""
 
     def on_browser(self, client_id, message):
@@ -143,12 +145,7 @@ class Controller:
             try:
                 clients = list(self.bridge.listing()) if all_clients else [preferred]
                 if command == "close_lolalytics":
-                    # Weak-PC mode / Alt+Shift+4: only Lolalytics tabs, in every connected browser; never other tabs.
-                    count = 0
-                    for client in clients:
-                        count += int(self.bridge.command("close_lolalytics", client).get("closed", 0) or 0)
-                    logging.getLogger(__name__).info("Lolalytics-Tabs geschlossen (alle Browser): %s", count)
-                    self.emit({"type": "browsers_closed", "count": count})
+                    self.close_browsers(clients)
                 else:
                     for client in clients:
                         result = self.bridge.command(command, client, **args)
@@ -162,6 +159,39 @@ class Controller:
             finally:
                 with self.command_lock:
                     self.inflight.discard(key)
+
+    def close_browsers(self, clients):
+        """Weak-PC mode / Alt+Shift+4. Scope from settings: only Lolalytics tabs (extension, Win32 fallback by window
+        title) or whole browsers (Win32 WM_CLOSE on every browser window, extension as fallback)."""
+        log = logging.getLogger(__name__)
+        scope = self.settings.snapshot()["close_scope"]
+        tabs, windows, errors = 0, 0, []
+        if scope == "browser":
+            windows = close_browser_windows(only_lolalytics=False)
+            if not windows:
+                for client in clients:
+                    try:
+                        windows += int(self.bridge.command("close_windows", client).get("windows", 0) or 0)
+                    except (ValueError, OSError) as error:
+                        errors.append(str(error))
+            log.info("Browser geschlossen (ganze Fenster): %s, Erweiterungs-Fehler: %s", windows, errors)
+            text = f"Browser geschlossen: {windows}" if windows else "Kein Browserfenster gefunden"
+        else:
+            for client in clients:
+                try:
+                    tabs += int(self.bridge.command("close_lolalytics", client).get("closed", 0) or 0)
+                except (ValueError, OSError) as error:
+                    errors.append(str(error))
+            if not tabs:
+                windows = close_browser_windows(only_lolalytics=True)
+            log.info("Lolalytics-Tabs geschlossen: %s Tabs (%s Browser verbunden), %s Fenster per Titel, Fehler: %s",
+                     tabs, len(clients), windows, errors)
+            text = (f"Lolalytics-Tabs geschlossen: {tabs or windows}" if tabs or windows
+                    else "Keine Lolalytics-Tabs gefunden" + ("" if clients else " – kein Browser verbunden (Erweiterung?)"))
+        if errors and not (tabs or windows):
+            text += f" – {errors[0]}"
+        self.emit({"type": "notice", "text": text})
+        self.emit({"type": "browsers_closed", "count": tabs or windows})
 
     def changed(self):
         logging.getLogger("lolpicker").setLevel(logging.DEBUG if self.settings.snapshot()["debug_mode"] else logging.INFO)

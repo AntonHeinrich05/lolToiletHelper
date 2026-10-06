@@ -97,6 +97,19 @@ async function closeLolalytics() {
   await persist();
   return {closed: targets.length, save_failed: failed};
 }
+async function closeWindows() {
+  // "Ganze Browser" scope: save Lolalytics URLs, then close every window of this browser (the user chose this explicitly).
+  const tabs = await api.tabs.query({});
+  for (const tab of tabs.filter(t => isLolalytics(t.url || t.pendingUrl))) {
+    const meta = managed[tab.id] || (context.champion ? {champion: context.champion, kind: "base"} : null);
+    try { await save(tab, meta); } catch (error) { console.info("Speichern vor dem Schließen fehlgeschlagen:", error.message); }
+  }
+  managed = {};
+  await persist();
+  const windows = await api.windows.getAll();
+  for (const win of windows) await api.windows.remove(win.id);
+  return {closed: tabs.length, windows: windows.length};
+}
 async function snapshotManaged() {
   const tabs = await api.tabs.query({});
   for (const tab of tabs) {
@@ -148,6 +161,7 @@ async function command(cmd) {
     case "close": return closeLolalytics();
     case "close_all": return closeLolalytics();
     case "close_lolalytics": return closeLolalytics();
+    case "close_windows": return closeWindows();
     case "snapshot": return snapshotManaged();
     case "correct_vs": return correctVs(cmd);
     default: throw new Error("Unbekannte Aktion");

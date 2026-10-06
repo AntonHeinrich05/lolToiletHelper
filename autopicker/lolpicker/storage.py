@@ -16,18 +16,19 @@ DEFAULT_HOTKEYS = {
     "close_all_browsers": "<alt>+<shift>+4",
 }
 DEFAULTS = {
-    "schema": 2, "auto_ready_enabled": True, "auto_pick_enabled": False,
+    "schema": 3, "auto_ready_enabled": True, "auto_pick_enabled": False,
     "auto_pick_champs": [], "auto_ban_champs": [], "bad_matchups": {}, "auto_pick_minimized": True,
     "hotkeys": DEFAULT_HOTKEYS, "live_tracking": True,
     "weak_pc_mode": False, "debug_mode": False, "preferred_browser": "",
     "lockfile_path": "", "live_api_port": 2999,
     "opacity_default": 0.75, "opacity_ingame": 0.5, "loadouts": {},
-    "flash_side": "left", "lolalytics_import": {"enabled": True, "tier": "all", "patch": "30", "build": "pick"},
-    "role_lists": {}, "list_role": "",
+    "flash_side": "left", "lolalytics_import": {"enabled": False, "tier": "all", "patch": "30", "build": "pick"},
+    "role_lists": {}, "list_role": "", "close_scope": "lolalytics",
 }
 OPACITY_MIN, OPACITY_MAX = 0.2, 1.0
 ROLES = ("top", "jungle", "middle", "bottom", "support")
 ROLE_LABELS = {"": "Alle Rollen", "top": "Top", "jungle": "Jungle", "middle": "Mid", "bottom": "Bot", "support": "Support"}
+CLOSE_SCOPES = {"lolalytics": "Nur Lolalytics-Tabs", "browser": "Ganze Browser (alle Tabs)"}
 
 
 def clean_champ_list(value):
@@ -51,6 +52,26 @@ def clean_loadout(value):
     jungle = value.get("jungle_spells")
     if isinstance(jungle, list) and len(jungle) == 2 and all(type(x) is int and x > 0 for x in jungle):
         result["jungle_spells"] = list(jungle)
+    own = clean_import_settings(value.get("lolalytics"), {})
+    if own:
+        result["lolalytics"] = own  # champion-specific Lolalytics rank/patch/build (only the keys that differ from the defaults)
+    return result
+
+
+def clean_import_settings(value, defaults):
+    """Validated Lolalytics import settings on top of `defaults`; unknown values keep the default."""
+    result = dict(defaults)
+    if not isinstance(value, dict):
+        return result
+    from .lolalytics import TIERS, BUILDS
+    if isinstance(value.get("enabled"), bool) and "enabled" in defaults:
+        result["enabled"] = value["enabled"]
+    if value.get("tier") in TIERS:
+        result["tier"] = value["tier"]
+    if isinstance(value.get("patch"), str) and re.fullmatch(r"\d{1,2}(\.\d{1,2})?", value["patch"]):
+        result["patch"] = value["patch"]
+    if value.get("build") in BUILDS:
+        result["build"] = value["build"]
     return result
 
 
@@ -106,17 +127,12 @@ def clean_config(value):
             result[key] = round(float(number), 2)
     if value.get("flash_side") in ("left", "right"):
         result["flash_side"] = value["flash_side"]
-    imp = value.get("lolalytics_import")
-    if isinstance(imp, dict):
-        from .lolalytics import TIERS, BUILDS
-        if isinstance(imp.get("enabled"), bool):
-            result["lolalytics_import"]["enabled"] = imp["enabled"]
-        if imp.get("tier") in TIERS:
-            result["lolalytics_import"]["tier"] = imp["tier"]
-        if isinstance(imp.get("patch"), str) and re.fullmatch(r"\d{1,2}(\.\d{1,2})?", imp["patch"]):
-            result["lolalytics_import"]["patch"] = imp["patch"]
-        if imp.get("build") in BUILDS:
-            result["lolalytics_import"]["build"] = imp["build"]
+    if value.get("close_scope") in CLOSE_SCOPES:
+        result["close_scope"] = value["close_scope"]
+    result["lolalytics_import"] = clean_import_settings(value.get("lolalytics_import"), result["lolalytics_import"])
+    schema = value.get("schema")
+    if isinstance(schema, int) and schema < 3:
+        result["lolalytics_import"]["enabled"] = False  # 2.6: Lolalytics runes without own choice are OFF by default
     if isinstance(value.get("role_lists"), dict):
         for role in ROLES:
             lists = value["role_lists"].get(role)

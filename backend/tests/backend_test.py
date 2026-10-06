@@ -8,8 +8,8 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
-ZIP_NAME = "LoL-Autopicker-2.5.1.zip"
-ZIP_PREFIX = "LoL-Autopicker-2.5.1"  # 2.5.1 (Lolalytics-Runenimport, Rollen-Picklisten, Spells-Fix)
+ZIP_NAME = "LoL-Autopicker-2.6.0.zip"
+ZIP_PREFIX = "LoL-Autopicker-2.6.0"  # 2.6.0 (Lolalytics-Runenimport, Rollen-Picklisten, Spells-Fix)
 
 
 @pytest.fixture(scope="module")
@@ -45,7 +45,7 @@ def test_download_zip_headers(zip_body):
 
 def test_download_zip_sha256_matches_file(zip_body):
     sha = hashlib.sha256(zip_body.content).hexdigest()
-    # SHA256.txt contains lines like "<hash>  LoL-Autopicker-2.5.1.zip"
+    # SHA256.txt contains lines like "<hash>  LoL-Autopicker-2.6.0.zip"
     sha_file = "/app/downloads/SHA256.txt"
     expected = None
     with open(sha_file) as f:

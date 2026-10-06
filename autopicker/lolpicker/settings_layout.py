@@ -1,7 +1,8 @@
 import tkinter as tk
 from .ui_widgets import ROW_BG
-from .lolalytics import TIERS, TIER_LABELS, BUILDS
-HOTKEY_LABELS = {'toggle_overlay': 'Overlay ein/aus', 'open_lolalytics': 'Lolalytics oeffnen', 'open_vs': 'VS-Matchup oeffnen', 'close_tab': 'Lolalytics-Tabs schliessen', 'close_all_browsers': 'Lolalytics-Tabs (alle Browser)'}
+from .lolalytics import TIERS, TIER_LABELS, BUILDS, patch_options
+from .storage import CLOSE_SCOPES
+HOTKEY_LABELS = {'toggle_overlay': 'Overlay ein/aus', 'open_lolalytics': 'Lolalytics oeffnen', 'open_vs': 'VS-Matchup oeffnen', 'close_tab': 'Lolalytics-Tabs schliessen', 'close_all_browsers': 'Alles schliessen (alle Browser)'}
 
 class ClassicSettings:
     BG = ROW_BG
@@ -62,8 +63,14 @@ class ClassicSettings:
         self.weak_btn = tk.Label(toggle_row, text=self._weak_label(self.app.weak_pc_mode), bg=self._weak_bg(self.app.weak_pc_mode), fg='#f0e6d2', font=('Consolas', 8, 'bold'), padx=10, pady=2, cursor='hand2')
         self.weak_btn.pack(side=tk.RIGHT)
         self.weak_btn.bind('<Button-1>', lambda e: self._toggle_weak_pc())
-        hint1 = tk.Label(opt_frame, text='AN  =  sobald das Spiel im Vordergrund ist, werden\n         nur Lolalytics-Tabs geschlossen (alle Browser).\n         Andere Tabs bleiben offen. Im Client passiert NICHTS.', bg=self.BG_PANEL, fg=self.DIM_FG, font=('Segoe UI', 7), justify=tk.LEFT, anchor='w')
+        hint1 = tk.Label(opt_frame, text='AN  =  sobald das Spiel im Vordergrund ist, wird geschlossen\n         (Umfang siehe unten, in allen verbundenen Browsern).\n         Im Client passiert NICHTS.', bg=self.BG_PANEL, fg=self.DIM_FG, font=('Segoe UI', 7), justify=tk.LEFT, anchor='w')
         hint1.pack(fill=tk.X, padx=8, pady=(0, 4))
+        scope_row = tk.Frame(opt_frame, bg=self.BG_PANEL)
+        scope_row.pack(fill=tk.X, padx=6, pady=(2, 3))
+        tk.Label(scope_row, text='Schließen betrifft', bg=self.BG_PANEL, fg=self.LABEL_FG, font=('Segoe UI', 8), anchor='w').pack(side=tk.LEFT)
+        self._menu_button(scope_row, CLOSE_SCOPES.get(self.app.close_scope, self.app.close_scope), list(CLOSE_SCOPES.items()), self._set_close_scope)
+        tk.Label(opt_frame, text='Gilt für Alt+Shift+4 und den Schwachen PC Modus.\n         „Ganze Browser“ schließt alle Browserfenster samt Tabs.', bg=self.BG_PANEL,
+                 fg=self.DIM_FG, font=('Segoe UI', 7), justify=tk.LEFT, anchor='w').pack(fill=tk.X, padx=8, pady=(0, 4))
         dbg_row = tk.Frame(opt_frame, bg=self.BG_PANEL)
         dbg_row.pack(fill=tk.X, padx=6, pady=(2, 3))
         tk.Label(dbg_row, text='Debug-Modus (Log)', bg=self.BG_PANEL, fg=self.LABEL_FG, font=('Segoe UI', 8), anchor='w').pack(side=tk.LEFT)
@@ -149,20 +156,18 @@ class ClassicSettings:
         row = self._row_label(parent, 'Rang')
         self._menu_button(row, TIER_LABELS.get(imp['tier'], imp['tier']), [(t, TIER_LABELS[t]) for t in TIERS], lambda v: self._set_import('tier', v))
         row = self._row_label(parent, 'Zeitraum / Patch')
-        patches = [('7', '7 Tage'), ('14', '14 Tage'), ('30', '30 Tage')] + [(p, f'Patch {p}') for p in self._recent_patches()]
+        patches = patch_options(getattr(self.app.controller.runes, 'version', ''))
         label = dict(patches).get(imp['patch'], f"Patch {imp['patch']}")
         self._menu_button(row, label, patches, lambda v: self._set_import('patch', v))
         row = self._row_label(parent, 'Build')
         self._menu_button(row, BUILDS.get(imp['build'], imp['build']), list(BUILDS.items()), lambda v: self._set_import('build', v))
+        tk.Label(parent, text='Pro Champion anpassbar: Runen-Fenster (✦) → „▸ Einstellungen“.', bg=self.BG_PANEL,
+                 fg=self.DIM_FG, font=('Segoe UI', 6), justify=tk.LEFT, anchor='w').pack(fill=tk.X, padx=8, pady=(0, 2))
         tk.Frame(parent, bg=self.BG_PANEL, height=4).pack()
 
-    def _recent_patches(self):
-        version = getattr(self.app.controller.runes, 'version', '') or ''
-        parts = version.split('.')
-        if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
-            return []
-        major, minor = int(parts[0]), int(parts[1])
-        return [f'{major}.{minor - i}' for i in range(0, 6) if minor - i >= 1]
+    def _set_close_scope(self, value):
+        self.app.close_scope = value
+        self.app.save_config()
 
     def _toggle_flash(self):
         self.app.flash_side = 'right' if self.app.flash_side == 'left' else 'left'

@@ -31,6 +31,8 @@ def api():
     user.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
     user.AllowSetForegroundWindow.argtypes = [wintypes.DWORD]
     user.keybd_event.argtypes = [ctypes.c_ubyte, ctypes.c_ubyte, wintypes.DWORD, ctypes.c_void_p]
+    user.PostMessageW.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM]
+    user.PostMessageW.restype = wintypes.BOOL
     return user
 
 
@@ -125,6 +127,23 @@ def focus_browser_window(hint='', timeout=1.5):
     ok = force_foreground(user, target)
     LOG.info('Browser in den Vordergrund: %s (%s)', 'ok' if ok else 'verweigert', window_text(user, target, user.GetWindowTextW)[:60])
     return ok
+
+
+def close_browser_windows(only_lolalytics=True):
+    """WM_CLOSE to browser top-level windows (no focus change). only_lolalytics: windows whose title shows Lolalytics;
+    otherwise every browser window ('Ganze Browser'). Returns the number of windows asked to close; 0 without Win32."""
+    user = api()
+    if not user:
+        return 0
+    count = 0
+    for hwnd in browser_windows(user):
+        title = window_text(user, hwnd, user.GetWindowTextW).lower()
+        if only_lolalytics and 'lolalytics' not in title:
+            continue
+        if user.PostMessageW(hwnd, 0x0010, 0, 0):
+            count += 1
+            LOG.info('Browserfenster geschlossen (WM_CLOSE): %s', title[:60])
+    return count
 
 
 class ForegroundMonitor(threading.Thread):

@@ -9,7 +9,7 @@ from .ui_layout import ClassicOverlay
 from .ui_widgets import BAN_BORDER, CHAMPION_NAMES, PICK_BORDER, ROW_BG
 from .storage import ROLE_LABELS
 from .urls import LANES
-from .lolalytics import fetch_build, to_loadout
+from .lolalytics import fetch_build, to_loadout, import_settings
 import threading
 
 INGAME_PHASES = ('InProgress', 'GameStart', 'Reconnect')
@@ -22,7 +22,7 @@ class App(ClassicOverlay):
                 'auto_ban_champs', 'auto_pick_minimized', 'bad_matchups',
                 'hotkeys', 'weak_pc_mode', 'debug_mode', 'live_tracking',
                 'opacity_default', 'opacity_ingame', 'loadouts',
-                'flash_side', 'lolalytics_import', 'role_lists', 'list_role')
+                'flash_side', 'lolalytics_import', 'role_lists', 'list_role', 'close_scope')
 
     def __init__(self, root, controller):
         self.controller = controller
@@ -146,27 +146,30 @@ class App(ClassicOverlay):
         self._resize_window()
 
     def _follow_assigned_role(self, position):
-        """Champion select: show the list that is actually used (assigned role, else 'Alle Rollen'); restored after the game."""
+        """Champion select: the assigned role's own list wins; otherwise the list the player selected stays. Restored after."""
         role = LANES.get(str(position or '').lower(), '')
-        target = role if role in self.role_lists else ''
+        target = role if role in self.role_lists else (self._manual_role if self._manual_role is not None else self.list_role)
         if target == self.list_role or self._dnd_state:
             return
         if self._manual_role is None:
             self._manual_role = self.list_role
         self._select_role(target, manual=False)
-        self.notice(f'Liste für {ROLE_LABELS.get(target, target)} aktiv' + (' (zugewiesene Rolle)' if target else ' (keine Liste für diese Rolle)'))
+        self.notice(f'Liste für {ROLE_LABELS.get(target, target)} aktiv (zugewiesene Rolle)' if target == role
+                    else f'Liste für {ROLE_LABELS.get(target, target)} aktiv (deine Auswahl)')
 
-    def import_lolalytics(self, champ_ids, role=None, done=None):
-        """Background import of Lolalytics runes/spells for the given champions (lane = role list or default)."""
+    def import_lolalytics(self, champ_ids, role=None, done=None, config=None):
+        """Background import of Lolalytics runes/spells for the given champions (lane = role list or default).
+        Rank/patch/build: `config` if given, else the champion's own settings, else the global settings."""
         role = self.list_role if role is None else role
-        config = self.lolalytics_import
         names = {cid: CHAMPION_NAMES.get(cid, str(cid)) for cid in champ_ids}
+        configs = {cid: config or import_settings(self.lolalytics_import, self.loadouts.get(str(cid))) for cid in champ_ids}
 
         def work():
             results, failed = {}, []
             for cid, name in names.items():
+                cfg = configs[cid]
                 try:
-                    build = fetch_build(name, role, config['tier'], config['patch'], config['build'])
+                    build = fetch_build(name, role, cfg['tier'], cfg['patch'], cfg['build'])
                     results[str(cid)] = to_loadout(build, self.controller.runes, self.flash_side)
                 except (OSError, ValueError, KeyError) as error:
                     logging.getLogger(__name__).info('Lolalytics-Import %s fehlgeschlagen: %s', name, error)
@@ -182,8 +185,9 @@ class App(ClassicOverlay):
             return
         for key, loadout in results.items():
             existing = self.loadouts.get(key, {})
-            if existing.get('jungle_spells'):
-                loadout['jungle_spells'] = existing['jungle_spells']
+            for keep in ('jungle_spells', 'lolalytics'):
+                if existing.get(keep):
+                    loadout[keep] = existing[keep]
             self.loadouts[key] = loadout
         if results:
             self.save_config()
@@ -333,8 +337,6 @@ class App(ClassicOverlay):
                 self.notice(message['text'])
             elif kind == 'import_done':
                 self._import_finished(message['results'], message['failed'], message['done'])
-            elif kind == 'browsers_closed' and message.get('count'):
-                self.notice(f"Lolalytics-Tabs geschlossen: {message['count']}", 1200)
         if resize:
             self._resize_window()
         self._poll_id = self.root.after(50, self.process_queue)

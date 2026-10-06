@@ -12,7 +12,7 @@ import aiohttp
 import psutil
 from .selection import actions, active_action, available, choose, own_player, roster, draft_opponent, effective_lists
 from .runes import page_body
-from .lolalytics import fetch_build, to_loadout, spells_for_role
+from .lolalytics import fetch_build, import_settings, to_loadout, spells_for_role
 
 LOG = logging.getLogger(__name__)
 PHASE = "/lol-gameflow/v1/gameflow-phase"
@@ -357,7 +357,7 @@ class LCUWorker(threading.Thread):
             imported = None
             options = self.settings.snapshot()
             if (options.get("lolalytics_import") or {}).get("enabled"):
-                imported = await self.import_loadout(champion, role, options["lolalytics_import"])
+                imported = await self.import_loadout(champion, role, import_settings(options["lolalytics_import"], loadout))
             if imported:
                 # Runes update: current Lolalytics page instead of the outdated own page; own spells stay.
                 loadout = {**imported, "spells": loadout["spells"], **({"jungle_spells": loadout["jungle_spells"]} if loadout.get("jungle_spells") else {})}
@@ -424,7 +424,7 @@ class LCUWorker(threading.Thread):
 
     async def prehover(self, session, options):
         # Pick intent (planning phase): PATCH championId on the own pick action, like the League client itself does.
-        if not options["auto_pick_champs"]:
+        if not effective_lists(options, own_player(session).get("assignedPosition"))["auto_pick_champs"]:
             return
         me = own_player(session)
         if me.get("championId") or me.get("championPickIntent"):

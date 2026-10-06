@@ -70,7 +70,13 @@ function createHarness(options = {}) {
     },
     windows: {
       _updates: [],
+      _removes: [],
       async update(id, patch) { this._updates.push({id, patch}); },
+      async getAll() { return [...new Set(tabs.map(t => t.windowId || 1))].map(id => ({id})); },
+      async remove(id) {
+        this._removes.push(id);
+        for (let i = tabs.length - 1; i >= 0; i--) if ((tabs[i].windowId || 1) === id) tabs.splice(i, 1);
+      },
     },
     storage: {
       local: {
@@ -199,6 +205,23 @@ test('close saves first, then closes EVERY lolalytics tab (also after navigating
   const failReply = h.port.posted.find(m => m.reply_to === 'close-fail');
   assert.equal(failReply.ok, true);
   assert.equal(failReply.save_failed, 1);
+});
+
+test('close_windows saves Lolalytics URLs and closes every browser window (explicit "Ganze Browser" scope)', async () => {
+  const h = createHarness({initialTabs: [{id: 50, url: 'https://www.google.com/', active: false, windowId: 2}]});
+  await h.tick(40);
+  h.fromApp({event: 'context', live_tracking: false, champion: 'aatrox'});
+  await h.tick(20);
+  h.fromApp({id: 'open', command: 'open', kind: 'base', url: 'https://lolalytics.com/lol/aatrox/build/?tier=all'});
+  await h.tick(120);
+  h.fromApp({id: 'cw', command: 'close_windows'});
+  await h.tick(150);
+  const reply = h.port.posted.find(m => m.reply_to === 'cw');
+  assert.equal(reply.ok, true);
+  assert.equal(reply.windows, 2);
+  assert.ok(h.events.some(e => e.startsWith('save:')), 'Lolalytics URL saved before closing');
+  assert.deepEqual(h.tabs, [], 'all windows (and thus all tabs) are gone');
+  assert.equal(Object.keys(h.sharedSession.managed).length, 0);
 });
 
 test('correct_vs dedupes and does not steal focus', async () => {

@@ -16,8 +16,26 @@ TIER_LABELS = {"all": "All Ranks", "1trick": "1Trick", "challenger": "Challenger
                "gold_plus": "Gold+", "silver": "Silver", "bronze": "Bronze", "iron": "Iron", "unranked": "Unranked"}
 PATCHES = ["7", "14", "30"]  # days; a patch number like "16.19" is accepted as well
 BUILDS = {"pick": "Most Common", "win": "Highest Win"}
-IMPORT_DEFAULTS = {"enabled": True, "tier": "all", "patch": "30", "build": "pick"}
+IMPORT_DEFAULTS = {"enabled": False, "tier": "all", "patch": "30", "build": "pick"}
 FLASH, SMITE = 4, 11
+
+
+def import_settings(config, loadout=None):
+    """Global rank/patch/build, overridden by the champion's own Lolalytics settings when present."""
+    return {**IMPORT_DEFAULTS, **(config or {}), **((loadout or {}).get("lolalytics") or {})}
+
+
+def recent_patches(version, count=6):
+    """'16.19.1' -> ['16.19', '16.18', ...] for the patch dropdowns."""
+    parts = str(version or "").split(".")
+    if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
+        return []
+    major, minor = int(parts[0]), int(parts[1])
+    return [f"{major}.{minor - i}" for i in range(count) if minor - i >= 1]
+
+
+def patch_options(version):
+    return [("7", "7 Tage"), ("14", "14 Tage"), ("30", "30 Tage")] + [(p, f"Patch {p}") for p in recent_patches(version)]
 
 
 def build_page_url(champion, lane="", tier="all", patch="30"):
