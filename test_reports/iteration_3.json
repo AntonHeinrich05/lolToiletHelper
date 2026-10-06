@@ -1,0 +1,57 @@
+{
+  "summary": "Updated classic Tk/NativeRelay/Node harness tests per request and ran bounded full regression: 36/36 pytest pass, 7/7 Node pass; classic_ui screenshot artifact generated.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "N/A",
+        "issue": "aiohttp.BasicAuth deprecation warning in lcu.py (future aiohttp 4.0 cleanup)"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Classic Tk overlay/settings",
+        "issues": [
+          "Linux Xvfb may report alpha as 1.0 even when alpha attributes are configured; exact transparency should still be verified on real Windows desktop"
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/autopicker/tests/test_ui_tk.py",
+    "/app/autopicker/tests/test_native_host_subprocess.py",
+    "/app/autopicker/tests/test_extension_background.js",
+    "/app/autopicker/tests/test_controller_queue_phase.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/classic_ui.png"
+  ],
+  "action_items": [
+    "Run one native Windows visual sanity check for exact alpha rendering (0.75/0.96) since Xvfb compositing can mask true transparency.",
+    "Optional: replace aiohttp.BasicAuth usage before aiohttp 4.0 to remove deprecation risk."
+  ],
+  "critical_code_review_comments": [
+    "No blocking defects found in requested flows after test updates: classic App fields, suggestion cap=5, Enter-first behavior, DnD persistence, settings rollback, NativeRelay reconnect, extension snapshot/bridge-status semantics, and weak-PC gating.",
+    "NativeRelay reconnect test confirms same subprocess PID survives bridge restart and reconnects quickly after session file rewrite."
+  ],
+  "updated_files": [
+    "/app/autopicker/tests/test_ui_tk.py",
+    "/app/autopicker/tests/test_native_host_subprocess.py",
+    "/app/autopicker/tests/test_extension_background.js",
+    "/app/autopicker/tests/test_controller_queue_phase.py",
+    "/app/test_reports/iteration_3.json"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "seed_data_creation": "No persistent seed data created; tests used temp dirs/mocked transports.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Executed bounded commands: DISPLAY=:99 timeout 60s python -m pytest /app/autopicker/tests -v --tb=short --junitxml=/app/test_reports/pytest/pytest_results.xml && timeout 60s node --test /app/autopicker/tests/test_extension_background.js",
+  "rca_of_issue": "Earlier failures came from obsolete Tk test references (app.picks/notice_label/open_settings). Replaced with classic App fields and methods now present in production; no remaining failing regressions in this run."
+}

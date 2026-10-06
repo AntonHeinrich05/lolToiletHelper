@@ -1,0 +1,32 @@
+{
+  "summary": "Backend-only validation for the LoL Autopicker fix bundle. Verified (1) FastAPI download routes under /api/autopicker/* via the public REACT_APP_BACKEND_URL, (2) the full /app/autopicker pytest suite (43 tests, incl. MockLCU-based reconnect/ready/hover/ban/pick scenarios) under Xvfb :99. All 43 autopicker tests and the 5 new backend_test.py API tests pass.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/autopicker/download/{filename}", "issue": "Only @router.get is declared, so HEAD returns 405 (not a product bug; browsers use GET for file download, but a @router.head alias would be nicer). cURL -I was used during manual probing and surfaced the 405."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/autopicker/tests/test_lcu_mock_server.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "lcu.py set_connected() correctly debounces status transitions so the overlay no longer flickers; set_connected(False) also resets phase to None which fixes the stale-indicator bug.",
+    "snapshot_loop tolerates up to MAX_POLL_FAILURES (4) transient HTTP errors before tearing the session down, matching the 'HTTP 500 at startup must not disconnect' requirement.",
+    "ws_connect uses heartbeat=None, so missing WS pongs no longer force a reconnect (bug fix verified by test_connection_is_stable_without_pongs_and_with_startup_errors).",
+    "main() while-loop re-runs discover() after a session exception, so credentials from a newly started League (new port/password/lockfile) are picked up automatically (verified by test_reconnects_after_league_restart_with_new_credentials).",
+    "ready_accepted is latched once per ReadyCheck phase and refreshed again before POST /accept, preventing duplicate accepts.",
+    "automate() re-fetches session + pickable/bannable IDs before PATCH, then re-verifies before POST /complete, which correctly guards against stale events and dodges.",
+    "autopicker_downloads.py: path traversal is blocked by rejecting '/','\\\\' and leading dot before FileResponse; good. Minor: consider adding a @router.head alias to avoid 405 on HEAD probes, and clamp filename length."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py", "/app/test_reports/iteration_4.json"],
+  "success_rate": {"backend": "100% (5/5 API tests + 43/43 autopicker pytest)", "frontend": "n/a (not in scope)"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Autopicker is a Python/Tkinter desktop app; the only backend surface is /api/autopicker/downloads and /api/autopicker/download/{filename} served from /app/downloads. Full test command: `cd /app/autopicker && DISPLAY=:99 python -m pytest -q`. Xvfb :99 is already running (PID 1175). The MockLCU in tests/mock_lcu.py already covers stable-connection, reconnect-with-new-credentials, single ready accept, and hover->ban->pick->complete flows. Backend regression tests live at /app/backend/tests/backend_test.py.",
+  "rca of the issue": "Flickering 'Verbunden' indicator: previous lcu driver treated every HTTP/WS hiccup (missing pong, transient 5xx) as a disconnect and emitted status=False->True repeatedly. New lcu.py: (a) set_connected() de-dupes transitions, (b) ws_connect uses heartbeat=None, (c) snapshot_loop tolerates up to 4 consecutive failures. Missing reconnect after League restart: old driver cached credentials; new main() loop re-discovers the lockfile/cmdline on every iteration after a session exception, so a new League instance with new port/token is picked up transparently."
+}

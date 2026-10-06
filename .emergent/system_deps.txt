@@ -1,0 +1,4 @@
+imagemagick=8:6.9.11.60+dfsg-1.6+deb12u13
+python3-tk=3.11.2-3
+tk=8.6.13
+tk8.6=8.6.13-2
