@@ -43,6 +43,7 @@ class ClassicOverlay:
         self.loadouts = {}
         self.opacity_default, self.opacity_ingame = 0.75, 0.5
         self.list_role, self.role_lists, self.flash_side, self.close_scope = '', {}, 'left', 'lolalytics'
+        self.show_rates = True
         self.lolalytics_import = {'enabled': False, 'tier': 'all', 'patch': '30', 'build': 'pick'}
         self.general_lists = {'auto_pick_champs': [], 'auto_ban_champs': []}
         self.load_config()
@@ -282,6 +283,14 @@ class ClassicOverlay:
         suggest.set_loading()
         self._resize_window()
         self.fetch_suggestions('counters', suggest, panel.owner_champ_id)
+
+    def toggle_rates(self):
+        """Show or hide the win/ban rates in the suggestion lists (the names stay clickable)."""
+        self.show_rates = not self.show_rates
+        self.save_config()
+        for panel in (self.ban_suggest, self.active_bm_panel.suggest if self.active_bm_panel else None):
+            if panel is not None:
+                panel.render()
 
     def toggle_auto_pick(self):
         self.auto_pick_enabled = self.auto_pick_toggle_var.get()

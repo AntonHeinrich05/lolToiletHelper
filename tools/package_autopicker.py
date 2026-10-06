@@ -4,7 +4,7 @@ from pathlib import Path
 import shutil
 import zipfile
 
-VERSION = "2.7.0"
+VERSION = "2.7.1"
 NAME = f"LoL-Autopicker-{VERSION}.zip"
 ROOT = Path(__file__).resolve().parents[1] / "autopicker"
 for family in ("chromium", "firefox"):

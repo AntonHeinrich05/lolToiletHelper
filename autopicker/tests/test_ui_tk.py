@@ -464,6 +464,13 @@ def test_bottom_padding_teammate_hint_and_suggestion_lists(tmp_path, bundle_dir)
         _pump(root)
         assert controller.settings.snapshot()['bad_matchups'] == {'234': [33]}
         assert len(app.active_bm_panel.bm_rows) == 1
+        suggest = app.active_bm_panel.suggest
+        _pump(root)
+        assert suggest.rates_btn.cget('text') == 'Werte: an' and any(w.winfo_ismapped() for w in suggest.rows[1].winfo_children()[0].winfo_children() if w.cget('text').endswith('WR'))
+        app.toggle_rates()
+        _pump(root)
+        assert controller.settings.snapshot()['show_rates'] is False and suggest.rates_btn.cget('text') == 'Werte: aus'
+        assert not any(w.cget('text').endswith('WR') for w in suggest.rows[1].winfo_children()[0].winfo_children() if w.winfo_ismapped())
         controller.emit({'type': 'suggestions', 'token': 12345, 'title': None, 'error': 'x', 'items': []})
         app.process_queue()  # stale token: ignored
     finally:

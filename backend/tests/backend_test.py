@@ -8,8 +8,8 @@ import pytest
 import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
-ZIP_NAME = "LoL-Autopicker-2.7.0.zip"
-ZIP_PREFIX = "LoL-Autopicker-2.7.0"  # 2.7.0 (Zauber vorab, Ban-Vorschläge, Hardcounter, Alt+Shift+4)
+ZIP_NAME = "LoL-Autopicker-2.7.1.zip"
+ZIP_PREFIX = "LoL-Autopicker-2.7.1"  # 2.7.0 (Zauber vorab, Ban-Vorschläge, Hardcounter, Alt+Shift+4)
 
 
 @pytest.fixture(scope="module")
@@ -77,7 +77,7 @@ def test_download_zip_contains_expected_files(zip_body):
         manifest_path = f"{ZIP_PREFIX}/extension/chromium/manifest.json"
         assert manifest_path in names
         manifest = z.read(manifest_path).decode("utf-8", errors="replace")
-        assert '"2.7.0"' in manifest, f"manifest.json missing version 2.7.0: {manifest[:200]}"
+        assert '"2.7.1"' in manifest, f"manifest.json missing version 2.7.0: {manifest[:200]}"
 
 
 # --- error cases ---

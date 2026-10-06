@@ -3,6 +3,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import tkinter as tk
 from pathlib import Path
 
@@ -65,7 +66,30 @@ def main():
     app.active_bm_panel.suggest.on_pick(33)
     pump(root)
     shot(root, "overlay_hardcounter_picked.png")
+    app.toggle_rates()
+    pump(root)
+    shot(root, "overlay_hardcounter_rates_off.png")
+    app.toggle_rates()
     print("bad_matchups:", controller.settings.snapshot()["bad_matchups"])
+
+    controller.runes.start()
+    deadline = time.monotonic() + 60
+    while not controller.runes.ready() and time.monotonic() < deadline:
+        pump(root)
+        time.sleep(0.2)
+    app._open_loadout(app.pick_rows[0])
+    window = app._loadout_window
+    deadline = time.monotonic() + 60
+    while time.monotonic() < deadline:
+        app.process_queue()
+        pump(root)
+        if window.preview is not None and window.preview.cget("text").startswith("Lolalytics:"):
+            break
+        time.sleep(0.2)
+    print("preview:", window.preview.cget("text") if window.preview else None)
+    pump(root)
+    x, y, w, h = window.win.winfo_rootx(), window.win.winfo_rooty(), window.win.winfo_width(), window.win.winfo_height()
+    subprocess.run(["import", "-window", "root", "-crop", f"{w + 20}x{h + 20}+{x - 10}+{y - 10}", str(OUT / "loadout_preview.png")], check=True)
     app.quit()
 
 

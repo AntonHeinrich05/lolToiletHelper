@@ -1,4 +1,4 @@
-# Rückmeldung 3 (nach 2.6.0) → umgesetzt in 2.7.0
+# Rückmeldung 3 (nach 2.6.0) → umgesetzt in 2.7.1
 
 > Zauber Vorab Setzen: Setze die Beschwörerzauber schon beim Hovern des Champions, nicht erst nach dem Lock-in · Ban-Import Lolalytics: Lass die meistgebannten Gegner-Champions pro Rolle als Vorschlag für deine Ban-Liste holen, und wenn ein mate einen champ picken will kann man den nicht bannen · bad matchup vorschläge für hardcounter … liste der 5 größten hardcounter und man kann weitere laden … gegen die Viego bei all ranks letzte 30 tage die schlechteste winrate hat, mit der winrate danebenstehend · standard einstellung für lol runen soll all ranks und 30 tage sein statt 7 tage · alt shift 4 funktioniert immer noch nicht, es findet keinen lolalytics tab obwohl ich mit alt shift 3 den schließen kann · unterer rand: ohne den Lolalytics-Button ist unten fast kein Rand, links/rechts dreimal so viel
 
@@ -9,6 +9,8 @@
 - **All Ranks + 30 Tage als Standard:** Die Lolalytics-Seiten, die Alt+Shift+1/2 und die Buttons öffnen, tragen jetzt `patch=30` (vorher nahm Lolalytics 7 Tage). Gespeicherte Seiten ohne Zeitraum bekommen 30 Tage ergänzt; Einstellungen mit „7 Tage“ aus älteren Versionen werden einmalig auf 30 Tage gesetzt.
 - **Alt+Shift+4 repariert:** „Nur Lolalytics-Tabs“ nutzt jetzt **denselben Erweiterungsbefehl wie Alt+Shift+3** (den jede installierte Erweiterungsversion kennt – auch ohne Neu-Laden) in allen verbundenen Browsern. Ursache: Lolalytics-Seiten tragen das Wort „Lolalytics“ nicht im Fenstertitel („Viego Build, Runes & Counters Guide …“), daher fand der Windows-Fallback nichts, sobald die Erweiterung den neuen Befehl nicht kannte. Der Fallback erkennt jetzt auch Titel mit „Build … Runes“, „Counters Guide“ oder deinem Champion-Namen. Die Antwort der Erweiterung steht im Protokoll.
 - **Unterer Rand:** Das Overlay hat jetzt immer einen festen unteren Rand (5 px, passend zu den 4 px links/rechts) – mit und ohne Champion-Zeile/Lolalytics-Button.
+- **Werte an/aus (2.7.1):** In jeder Vorschlagsliste (Bans, Hardcounter) steht oben „Werte: an/aus“ – damit blendest du Winrate bzw. Banrate aus oder wieder ein; die Einstellung wird gespeichert, die Namen bleiben klickbar.
+- **Import-Vorschau (2.7.1):** Im Runen-Fenster (✦) steht unter „⤓ Von Lolalytics“ sofort, was der Import holen würde: „Lolalytics: 49,1 % WR · 1.172.656 Spiele · Most Common, All Ranks, 30 Tage“ – mit genau den Einstellungen (allgemein oder champion-eigen), die gerade gelten. Änderst du unter „▸ Einstellungen“ Rang/Zeitraum/Build, lädt die Vorschau neu.
 
 
 # Rückmeldung des Nutzers (Stand nach 2.4) — Grundlage für 2.5

@@ -107,3 +107,14 @@ def test_counters_and_tierlist_parsing_and_patch_defaults():
     assert with_default_patch("https://lolalytics.com/lol/viego/build/?patch=7&tier=all") == "https://lolalytics.com/lol/viego/build/?patch=7&tier=all"
     assert clean_config({"schema": 3, "lolalytics_import": {"patch": "7"}})["lolalytics_import"]["patch"] == "30"
     assert clean_config({"schema": 4, "lolalytics_import": {"patch": "7"}})["lolalytics_import"]["patch"] == "7"
+
+
+def test_rune_page_preview_text():
+    from lolpicker.lolalytics import preview_text
+    html = qwik_page([8112, 8139, 8140, 8106], [8226, 8210], [5005, 5008, 5001], [4, 14])
+    build = parse_page(html)
+    assert build["winrate"] == 0.0 and build["games"] == 1234  # old fixture without 'wr'
+    text = preview_text({**build, "winrate": 49.08, "games": 1172656}, {"tier": "all", "patch": "30", "build": "pick"})
+    assert text == "Lolalytics: 49.1 % WR · 1.172.656 Spiele · Most Common, All Ranks, 30 Tage"
+    assert preview_text({"winrate": 51.26, "games": 900}, {"tier": "gold_plus", "patch": "16.19", "build": "win"}).endswith("Highest Win, Gold+, Patch 16.19")
+    assert clean_config({"show_rates": False})["show_rates"] is False and clean_config({})["show_rates"] is True

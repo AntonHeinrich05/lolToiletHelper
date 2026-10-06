@@ -9,7 +9,7 @@ from .ui_layout import ClassicOverlay
 from .ui_widgets import BAN_BORDER, CHAMPION_NAMES, PICK_BORDER, ROW_BG
 from .storage import ROLE_LABELS
 from .urls import LANES
-from .lolalytics import fetch_build, to_loadout, import_settings, fetch_bans, fetch_counters
+from .lolalytics import fetch_build, to_loadout, import_settings, fetch_bans, fetch_counters, preview_text
 import threading
 
 INGAME_PHASES = ('InProgress', 'GameStart', 'Reconnect')
@@ -23,7 +23,7 @@ class App(ClassicOverlay):
                 'auto_ban_champs', 'auto_pick_minimized', 'bad_matchups',
                 'hotkeys', 'weak_pc_mode', 'debug_mode', 'live_tracking',
                 'opacity_default', 'opacity_ingame', 'loadouts',
-                'flash_side', 'lolalytics_import', 'role_lists', 'list_role', 'close_scope')
+                'flash_side', 'lolalytics_import', 'role_lists', 'list_role', 'close_scope', 'show_rates')
 
     def __init__(self, root, controller):
         self.controller = controller
@@ -215,7 +215,7 @@ class App(ClassicOverlay):
                 else:
                     result = fetch_counters(name, role, cfg['tier'], cfg['patch'])
                     items = [(r['champion_id'], f"{r['winrate']:.1f} % WR") for r in result['counters']]
-                    title = f"Hardcounter {name} ({result['lane']}) · WR von {name}"
+                    title = f"Hardcounter {name} · {result['lane']}"
                 self.controller.emit({'type': 'suggestions', 'token': token, 'items': items, 'title': title, 'error': None})
             except (OSError, ValueError, KeyError) as error:
                 logging.getLogger(__name__).info('Lolalytics-Vorschläge (%s) fehlgeschlagen: %s', kind, error)
@@ -235,6 +235,21 @@ class App(ClassicOverlay):
         else:
             panel.set_items(message['items'], message['title'])
         self._resize_window()
+
+    def fetch_rune_preview(self, champ_id, key):
+        """Rune window: win rate + games of the Lolalytics rune page (tier, patch, build, role list = key) in the background."""
+        tier, patch, build, role = key
+        name = CHAMPION_NAMES.get(champ_id, str(champ_id))
+        settings = {'tier': tier, 'patch': patch, 'build': build}
+
+        def work():
+            try:
+                text = preview_text(fetch_build(name, role, tier, patch, build), settings)
+            except (OSError, ValueError, KeyError) as error:
+                logging.getLogger(__name__).info('Lolalytics-Vorschau %s fehlgeschlagen: %s', name, error)
+                text = 'Lolalytics-Vorschau nicht verfügbar (Internet / Champion-Seite?)'
+            self.controller.emit({'type': 'rune_preview', 'champ_id': champ_id, 'key': key, 'text': text})
+        threading.Thread(target=work, daemon=True, name='LolalyticsPreview').start()
 
     def _open_loadout(self, row):
         if self._loadout_window and self._loadout_window.win.winfo_exists():
@@ -380,6 +395,10 @@ class App(ClassicOverlay):
                 self.notice(message['text'])
             elif kind == 'suggestions':
                 self._suggestions_done(message)
+            elif kind == 'rune_preview':
+                window = self._loadout_window
+                if window and window.win.winfo_exists() and window.champ_id == message['champ_id']:
+                    window.show_preview(tuple(message['key']), message['text'])
             elif kind == 'import_done':
                 self._import_finished(message['results'], message['failed'], message['done'])
         if resize:

@@ -135,3 +135,8 @@ Der Nutzer verlangt ausdrücklich die ursprüngliche Tk-Oberfläche (Screenshot,
 ### Offen / nächste Schritte
 - Windows-Abnahme: Zauber vorab im echten Client, Alt+Shift+4 mit Opera GX, Ban-/Hardcounter-Vorschläge live, unterer Rand.
 - Optional: Hardcounter auch für andere Lanes auswählbar; Bad-Matchup-Limit (6) erhöhen; Import-Vorschau (Winrate/Spiele der Runenseite).
+
+## Implementiert — 2026-10-06 (Session 2.7.1)
+- `show_rates` (Einstellung, Standard an): „Werte: an/aus“ in jeder `SuggestionList` blendet Win-/Banraten aus; `App.toggle_rates` speichert und rendert neu.
+- Import-Vorschau im Runen-Fenster: `parse_page` liefert `winrate`, `lolalytics.preview_text`; `LoadoutWindow._load_preview` (Cache pro Tier/Patch/Build/Rolle) → `App.fetch_rune_preview` (Thread) → Event `rune_preview`.
+- 62 Python + 7 Backend-Tests grün; ZIP `LoL-Autopicker-2.7.1.zip`; Screenshot `/app/test_reports/loadout_preview.png`.

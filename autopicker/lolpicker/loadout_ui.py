@@ -105,6 +105,8 @@ class LoadoutWindow:
         self.state = dict(saved) if saved else None
         self.show_jungle = bool(saved and saved.get('jungle_spells'))
         self.show_import_settings = bool(saved and saved.get('lolalytics'))
+        self.previews = {}
+        self.preview = None
         self.win.bind('<Escape>', lambda e: self.close())
         self._wait_for_data()
 
@@ -213,9 +215,30 @@ class LoadoutWindow:
             remove.bind('<Button-1>', lambda e: self.remove())
         if self.show_import_settings:
             self._build_import_settings()
+        # Import preview: win rate + games of the Lolalytics rune page that "⤓ Von Lolalytics" would take.
+        self.preview = tk.Label(self.body, text='', bg=ROW_BG, fg=DIM_FG, font=('Segoe UI', 6), anchor='w')
+        self.preview.pack(fill=tk.X, padx=10, pady=(2, 0))
+        self._load_preview()
         self.status.config(text='Gewählt = hell mit goldenem Rand. Wird beim Lock-in automatisch gesetzt.')
         self.win.update_idletasks()
         self.win.geometry(f'{self.win.winfo_reqwidth()}x{self.win.winfo_reqheight()}')
+
+    def preview_key(self):
+        cfg = import_settings(self.app.lolalytics_import, self.state)
+        return (cfg['tier'], cfg['patch'], cfg['build'], self.app.list_role)
+
+    def _load_preview(self):
+        key = self.preview_key()
+        if key in self.previews:
+            self.preview.config(text=self.previews[key])
+            return
+        self.preview.config(text='Lolalytics-Vorschau wird geladen …')
+        self.app.fetch_rune_preview(self.champ_id, key)
+
+    def show_preview(self, key, text):
+        self.previews[key] = text
+        if self.preview is not None and self.preview.winfo_exists() and key == self.preview_key():
+            self.preview.config(text=text)
 
     def _build_import_settings(self):
         """Champion-specific Lolalytics rank/patch/build (collapsed): try e.g. 'Highest Win' for just this champion."""

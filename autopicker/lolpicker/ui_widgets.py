@@ -58,6 +58,8 @@ class SuggestionList:
         close = tk.Label(head, text='✕', bg=ROW_BG, fg='#c8aa6e', font=('Segoe UI', 6), cursor='hand2')
         close.pack(side=tk.RIGHT, padx=(0, 2))
         close.bind('<Button-1>', lambda e: on_close())
+        self.rates_btn = link_label(head, '', app.toggle_rates, FONT_ENTRY_SMALL)
+        self.rates_btn.pack(side=tk.RIGHT, padx=(0, 6))
         self.body = tk.Frame(self.frame, bg=ROW_BG)
         self.body.pack(fill=tk.X)
         self.status = tk.Label(self.frame, text='', bg=ROW_BG, fg='#7a7259', font=FONT_ENTRY_SMALL, anchor='w', wraplength=200, justify='left')
@@ -89,6 +91,7 @@ class SuggestionList:
         for row in self.rows:
             row.destroy()
         self.rows = []
+        self.rates_btn.config(text='Werte: an' if self.app.show_rates else 'Werte: aus')
         for cid, value in self.items[:self.shown]:
             self.rows.append(self._row(cid, value))
         if self.shown < len(self.items):
@@ -108,7 +111,8 @@ class SuggestionList:
         name = tk.Label(inner, text=CHAMPION_NAMES.get(cid, str(cid)) + ('  ✓' if taken else ''), bg='#11161f', fg=fg, font=FONT_ROW_SMALL, anchor='w')
         name.pack(side=tk.LEFT, padx=(3, 0))
         val = tk.Label(inner, text=value, bg='#11161f', fg='#4f4838' if taken else value_color(value), font=FONT_ENTRY_SMALL)
-        val.pack(side=tk.RIGHT, padx=(0, 3))
+        if self.app.show_rates:
+            val.pack(side=tk.RIGHT, padx=(0, 3))
         if not taken:
             for w in (outer, inner, name, val):
                 w.config(cursor='hand2')

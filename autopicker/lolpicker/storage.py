@@ -23,7 +23,7 @@ DEFAULTS = {
     "lockfile_path": "", "live_api_port": 2999,
     "opacity_default": 0.75, "opacity_ingame": 0.5, "loadouts": {},
     "flash_side": "left", "lolalytics_import": {"enabled": False, "tier": "all", "patch": "30", "build": "pick"},
-    "role_lists": {}, "list_role": "", "close_scope": "lolalytics",
+    "role_lists": {}, "list_role": "", "close_scope": "lolalytics", "show_rates": True,
 }
 OPACITY_MIN, OPACITY_MAX = 0.2, 1.0
 ROLES = ("top", "jungle", "middle", "bottom", "support")
@@ -105,7 +105,7 @@ def read_json(path, default):
 
 def clean_config(value):
     result = copy.deepcopy(DEFAULTS)
-    for key in ("auto_ready_enabled", "auto_pick_enabled", "auto_pick_minimized", "live_tracking", "weak_pc_mode", "debug_mode"):
+    for key in ("auto_ready_enabled", "auto_pick_enabled", "auto_pick_minimized", "live_tracking", "weak_pc_mode", "debug_mode", "show_rates"):
         if isinstance(value.get(key), bool):
             result[key] = value[key]
     for key in ("auto_pick_champs", "auto_ban_champs"):

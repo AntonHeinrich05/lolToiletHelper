@@ -87,7 +87,15 @@ def parse_page(html, build="pick"):
     if len(perks) != 6 or len(runes["mod"]) != 3 or len(spells) != 2:
         raise ValueError("Unvollständige Runen-Daten")
     return {"perks": [int(p) for p in perks], "shards": [int(s) for s in runes["mod"]], "spells": [int(s) for s in spells],
-            "lane": str(deref(root["header"]).get("lane", "")), "games": int(summary["runes"].get("n", 0) or 0)}
+            "lane": str(deref(root["header"]).get("lane", "")), "games": int(summary["runes"].get("n", 0) or 0),
+            "winrate": float(summary["runes"].get("wr", 0) or 0)}
+
+
+def preview_text(build, settings):
+    """One line for the rune window: win rate + games of the Lolalytics rune page with the settings in use."""
+    period = f"{settings['patch']} Tage" if str(settings["patch"]).isdigit() else f"Patch {settings['patch']}"
+    games = f"{build['games']:,}".replace(",", ".")
+    return f"Lolalytics: {build['winrate']:.1f} % WR · {games} Spiele · {BUILDS.get(settings['build'], settings['build'])}, {TIER_LABELS.get(settings['tier'], settings['tier'])}, {period}"
 
 
 def parse_counters(html, lane=""):
