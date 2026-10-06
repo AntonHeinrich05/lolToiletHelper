@@ -9,7 +9,7 @@ import requests
 
 BASE_URL = os.environ.get("REACT_APP_BACKEND_URL").rstrip("/")
 ZIP_NAME = "LoL-Autopicker-2.5.1.zip"
-ZIP_PREFIX = "LoL-Autopicker-2.5.1"
+ZIP_PREFIX = "LoL-Autopicker-2.5.1"  # 2.5.1 (Lolalytics-Runenimport, Rollen-Picklisten, Spells-Fix)
 
 
 @pytest.fixture(scope="module")
@@ -61,6 +61,10 @@ def test_download_zip_sha256_matches_file(zip_body):
 def test_download_zip_contains_expected_files(zip_body):
     with zipfile.ZipFile(io.BytesIO(zip_body.content)) as z:
         names = z.namelist()
+        assert f"{ZIP_PREFIX}/README.md" in names
+        assert f"{ZIP_PREFIX}/Start.bat" in names
+        assert f"{ZIP_PREFIX}/lolpicker/lcu.py" in names
+        assert f"{ZIP_PREFIX}/lolpicker/lolalytics.py" in names
         assert f"{ZIP_PREFIX}/lolpicker/runes.py" in names
         assert f"{ZIP_PREFIX}/lolpicker/loadout_ui.py" in names
         bg_path = f"{ZIP_PREFIX}/extension/chromium/background.js"
