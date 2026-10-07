@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "LoL Autopicker – Lokale Browser-Bridge",
+  "version": "2.8.0",
+  "description": "Lolalytics-Tabs ohne Duplikate öffnen, speichern und gezielt schließen. Nur lokale Kommunikation.",
+  "minimum_chrome_version": "110",
+  "permissions": ["nativeMessaging", "storage", "webNavigation", "alarms"],
+  "host_permissions": ["https://lolalytics.com/*", "https://www.lolalytics.com/*", "http://lolalytics.com/*"],
+  "background": {"service_worker": "background.js"},
+  "action": {"default_title": "Autopicker verbinden / diesen Browser auswählen"},
+  "icons": {"128": "icon.png"}
+}

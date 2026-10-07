@@ -1,0 +1,31 @@
+{
+  "summary": "Backend-only review for LoL Autopicker v2.5.1 (Lolalytics-Runenimport, Rollen-Picklisten, Spells-Fix mit selectedSkinId, Overlay folgt zugewiesener Rolle). All checks green: FastAPI download/listing endpoints (7/7), full Tkinter pytest suite under Xvfb :99 (56/56), Node extension harness (7/7), Lolalytics Live-Import for Ahri/mid and Lee Sin/jungle (pick+win) returns the expected perks/shards/spells shape incl. Flash=4 / Smite=11, and the requested order_spells / spells_for_role / selection.effective_lists / storage.clean_config unit expectations are all satisfied.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/autopicker/tests/",
+    "/app/autopicker/tests/test_extension_background.js"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "autopicker_downloads.py now serves LoL-Autopicker-2.5.1.zip; SHA256 (f2152efa...6002) matches the response body and the archive contains README.md, Start.bat, lolpicker/lcu.py, lolpicker/lolalytics.py, lolpicker/runes.py, lolpicker/loadout_ui.py and extension/chromium/background.js (contains 'close_lolalytics'). Path traversal, unknown filename and disallowed extension all return 404.",
+    "lolpicker.lolalytics.fetch_build live-fetch (lolalytics.com) returns {perks:6, shards:3, spells:2, lane:'middle'} for Ahri/middle with Flash(4) present, and Lee Sin/jungle contains Smite(11) for both build='pick' and build='win' — Lolalytics parser is stable.",
+    "order_spells puts Flash on the chosen side ([14,4]->right stays, left flips to [4,14]); spells_for_role swaps non-Smite spells for Smite(11) on jungle role when no explicit jungle_spells provided, and otherwise prefers jungle_spells unchanged — matches spec.",
+    "selection.effective_lists correctly overlays role_lists.top.auto_pick_champs over the base auto_pick_champs while falling back to the global auto_ban_champs when the role has an empty ban list.",
+    "storage.clean_config whitelists role_lists keys to top/jungle/middle/bottom/support (drops 'bogus'), removes a role whose pick+ban lists are both empty ('jungle' here), coerces lolalytics_import to defaults {enabled:True,tier:'all',patch:'30',build:'pick'} for invalid values, and resets flash_side to 'left' when not 'left'/'right'.",
+    "lcu.set_spells now GETs my-selection first to preserve selectedSkinId before PATCHing spell1Id/spell2Id with verification (covered by test_lcu_mock_server.py), and apply_loadout funnels legacy runes through import_loadout — fully exercised by the 56-test pytest suite under Xvfb."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {
+    "backend": "100% (7/7 FastAPI + 56/56 autopicker pytest + 7/7 node extension)",
+    "frontend": "n/a (desktop Tkinter tool; web UI is only the stock splash)"
+  },
+  "test_credentials": "none required",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Commands: `export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL /app/frontend/.env | cut -d= -f2); python -m pytest /app/backend/tests/backend_test.py -v` (7 tests, uses pytest.ini -n 2); `cd /app/autopicker && DISPLAY=:99 python -m pytest -q` (56 tests, Xvfb :99 already running); `cd /app/autopicker && node --test tests/test_extension_background.js` (7 tests). backend_test.py pinned to LoL-Autopicker-2.5.1.zip and additionally asserts README.md, Start.bat, lolpicker/lcu.py and lolpicker/lolalytics.py exist inside the zip prefix. Lolalytics live fetch takes 2-5 s per champion and was green at test time.",
+  "rca of the issue": "N/A — all v2.5.1 features verified against spec."
+}

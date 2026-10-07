@@ -1,0 +1,40 @@
+{
+  "summary": "Backend-only testing for LoL Autopicker v2.4.0. Ran the full /app/autopicker pytest suite (49/49 passed under Xvfb :99, DISPLAY=:99) and the Node extension harness (7/7 passed). Backend FastAPI download API tests updated for the new zip (LoL-Autopicker-2.4.0.zip) and now also verify SHA256 against downloads/SHA256.txt plus presence of runes.py, loadout_ui.py and extension/chromium/background.js containing 'close_lolalytics' — all 7 backend tests pass against the public REACT_APP_BACKEND_URL.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/autopicker/download/{filename}", "issue": "No @router.head alias; HEAD still returns 405 (cosmetic, GET is used for actual download)."}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/autopicker/tests/test_extension_background.js",
+    "/app/autopicker/tests/mock_lcu.py"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "storage.clean_config correctly clamps opacity_default/opacity_ingame to [0.2, 1.0] with 0.75/0.5 fallback and clean_loadout drops entries with non-int perks/shards/spells or non-numeric champion keys (verified via existing pytest cases).",
+    "runes.RuneData.apply orders tree ids 8000/8100/8200/8400/8300 and filters summoner spells to SPELL_IDS; validate() rejects primary==sub, two sub perks in same row, and wrong shard rows; page_body concatenates perks + shards into selectedPerkIds (confirmed by pytests).",
+    "lcu.LCUWorker.apply_loadout against MockLCU: deletes old 'Autopicker*' pages, evicts oldest when ownedPageCount reached, POSTs page, PUTs currentpage, and PATCHes my-selection with spell1Id/spell2Id exactly once per champ-select session — matches spec.",
+    "controller.handle game_foreground with weak_pc_mode=True enqueues 'close_lolalytics' to every browser client and emits browsers_closed with summed count; weak_pc_mode=False is a no-op (test_controller_queue_phase covers this).",
+    "extension/shared/background.js 'close'/'close_all'/'close_lolalytics' close every tab whose hostname is (www.)lolalytics.com even after navigating to another champion; save failure still removes tab and replies ok:true with save_failed count; 'open' focuses the window with windows.update focused:true. Commands while disconnected are ignored (Node VM harness covers all 7 assertions).",
+    "Tk UI: ban row border recoloring (red→grey at ChampSelect, blue when hovered, green when banned, back to red at phase None), opacity switching (opacity_default vs opacity_ingame), and LoadoutWindow (tiles built after icons load, set_primary/sub/perk/sub_perk/shard/spell logic + save persisting settings['loadouts'][str(champ_id)] and gold ✦ button) are all covered by test_ui_tk.py.",
+    "autopicker_downloads.py path traversal (reject '/','\\\\' and leading dot) and extension filter are solid; HEAD alias is the only minor nit."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/iteration_5.json"
+  ],
+  "success_rate": {
+    "backend": "100% (7/7 API tests + 49/49 autopicker pytest + 7/7 extension node tests)",
+    "frontend": "n/a (desktop tool, out of scope)"
+  },
+  "test_credentials": "none required",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Full command set: `cd /app/autopicker && DISPLAY=:99 python -m pytest -q` (49 tests, needs Xvfb :99 which is running as PID in `pgrep Xvfb`), `cd /app/autopicker && node --test tests/test_extension_background.js` (7 tests), and `REACT_APP_BACKEND_URL=<public_url> python -m pytest /app/backend/tests/backend_test.py -v` (7 tests). The backend_test.py was bumped from the 2.2/2.3 fixture to LoL-Autopicker-2.4.0.zip and now cross-checks SHA256.txt plus required archive members (runes.py, loadout_ui.py, extension/chromium/background.js with 'close_lolalytics'). Note: the test file requires REACT_APP_BACKEND_URL in the environment (no default).",
+  "rca of the issue": "N/A — all specified features/fixes behave per spec. The only stale-state found was backend_test.py still referencing the old zip name (2.2-Verbindungsfix); updated to 2.4.0 and extended with SHA256 + content checks requested in the review."
+}
