@@ -140,3 +140,18 @@ Der Nutzer verlangt ausdrücklich die ursprüngliche Tk-Oberfläche (Screenshot,
 - `show_rates` (Einstellung, Standard an): „Werte: an/aus“ in jeder `SuggestionList` blendet Win-/Banraten aus; `App.toggle_rates` speichert und rendert neu.
 - Import-Vorschau im Runen-Fenster: `parse_page` liefert `winrate`, `lolalytics.preview_text`; `LoadoutWindow._load_preview` (Cache pro Tier/Patch/Build/Rolle) → `App.fetch_rune_preview` (Thread) → Event `rune_preview`.
 - 62 Python + 7 Backend-Tests grün; ZIP `LoL-Autopicker-2.7.1.zip`; Screenshot `/app/test_reports/loadout_preview.png`.
+
+## Implementiert — 2026-06 (Session 2.8.0, Rückmeldung 4; Repo-Branch `should-be-finished` nach /app übernommen)
+- `Setup.bat`: startet den Autopicker direkt nach der Einrichtung, danach `choice` J/N für `install_browser.py` (Browser-Bridge).
+- Ban-Vorschläge: Einstellungen `ban_suggest` {sort: winrate|banrate|pickrate (Standard winrate), tier, patch} und `counter_suggest` {tier, patch} (Standard all/30) in `storage.py`; `lolalytics.parse_tierlist/sort_tierlist/fetch_bans(sort)`; Titel/Wert pro Sortierung in `ui.fetch_suggestions`.
+- `ui_widgets.ScrollFrame` (Canvas + Mausrad app-weit via `install_wheel`, schmaler Thumb); `SuggestionList` zeigt alle Zeilen, scrollt ab 5, kein „Werte an/aus“ mehr (`show_rates` entfernt, `show_item_rates` neu).
+- `⤓ Bans` klappt bei offener Liste ein; `_on_global_click` klappt die Ban-Liste bei jedem nicht-ban-bezogenen Klick im Overlay ein; `reload_suggestions()` bei Einstellungsänderung.
+- `settings_layout.py` neu: Kopf/Fuß fest, Mitte scrollbar, Sektionen Tastenkürzel / Darstellung / Browser & Spiel / Runen & Zauber / Ban-Vorschläge / Hardcounter-Vorschläge / Programm & Updates (Breite 324).
+- Runen-Fenster (`loadout_ui.py`): Vorschau größer (8pt gold); `render_items()` STANDARD-BUILD (Start ×n, Core ›, Item 4/5/6 mit „oder“-Alternativen, Hover-Tooltip, optional Werte); `parse_items/item_ids/format_games`; Item-Icons + Namen über Data Dragon (`runes.item_icon/item_name/prefetch_item_icons`, item.json). Einstellungsänderung → `_refresh_runes()`: Import sofort, bei eigenen Runen (`dirty` oder gespeichert ohne `imported`-Flag) inline-Nachfrage `ask_confirm` JA/NEIN. Loadout-Flag `imported` (clean_loadout).
+- Updater: `lolpicker/updater.py` (GitHub API: Branch mit neuestem Commit, `version.json` Vergleich, codeload-ZIP, CRLF für .bat) + `update_apply.py` (detached: wartet auf PID, kopiert ohne .venv/native_manifests, pip install ., Neustart). Einstellungen → „NACH UPDATES SUCHEN“ → „JETZT INSTALLIEREN“; Events `update_check`/`update_ready`.
+- Ränder: BOTTOM_PAD 3 (+1 Zeilen-pady = 4 px), oben pady 2.
+- Tests: 64 Python grün (iteration_8, Testagent ohne Befunde); Screenshots `/app/test_reports/v28_*.png` (`tools/shot_v28.py`); ZIP `LoL-Autopicker-2.8.0.zip`, Erweiterung 2.8.0.
+
+### Offen / Backlog
+- Windows-Abnahme: Setup.bat-Flow mit `choice`, Mausrad-Scrollen in Overlay/Einstellungen, Update-Durchlauf (update_apply mit pythonw-Neustart), Item-Symbole.
+- Optional: Items beim Lock-in als Item-Set in den Client schreiben; Update-Check automatisch beim Start; Hardcounter für andere Lanes.
